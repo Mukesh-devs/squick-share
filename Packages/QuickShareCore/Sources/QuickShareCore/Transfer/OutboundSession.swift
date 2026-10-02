@@ -329,7 +329,7 @@ actor OutboundSession {
 
     private func fail(_ error: TransferError) async {
         guard state != .done else { return }
-        diagnostics.error(tag, "transfer failed in state \(state): \(error)")
+        diagnostics.error(tag, "transfer failed in state \(state): \(error.logDescription)")
         await finish(with: .failed(transferID: id, error: error))
     }
 

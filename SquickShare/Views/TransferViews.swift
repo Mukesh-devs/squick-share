@@ -40,8 +40,14 @@ struct IncomingRequestView: View {
                     .keyboardShortcut(.defaultAction)
                     .accessibilityHint("Saves to \(model.settings.downloadFolder.lastPathComponent)")
             }
-            Text("Files are saved to \(model.settings.downloadFolder.lastPathComponent). They are never opened automatically.")
-                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Text("Files are saved to \(model.settings.downloadFolder.lastPathComponent). They are never opened automatically.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("PIN doesn't match") { model.declineForPinMismatch(request) }
+                    .buttonStyle(.link).font(.caption)
+                    .accessibilityHint("Declines because the other device shows a different PIN")
+            }
         }
         .padding(18)
     }
@@ -166,6 +172,9 @@ struct TransferRow: View {
                 Text("Connecting…").font(.caption).foregroundStyle(.secondary)
             case .waitingForAcceptance(let pin):
                 PinBadge(pin: pin, caption: "Waiting for \(transfer.deviceName) to accept. Check it shows the same PIN.")
+                Button("PIN doesn't match") { model.cancelForPinMismatch(transfer) }
+                    .buttonStyle(.link).font(.caption)
+                    .accessibilityHint("Cancels because the other device shows a different PIN")
             case .transferring:
                 ProgressView(value: transfer.fraction)
                     .accessibilityLabel("Progress")

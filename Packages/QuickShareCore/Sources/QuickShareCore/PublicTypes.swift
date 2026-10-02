@@ -96,6 +96,14 @@ public enum TransferError: Error, Sendable, Equatable {
     case fileAccess(String)
     case protocolViolation(String)
 
+    /// For logs: never includes system error text, which can contain file names or paths.
+    public var logDescription: String {
+        switch self {
+        case .fileAccess: "fileAccess(redacted)"
+        default: "\(self)"
+        }
+    }
+
     public var userMessage: String {
         switch self {
         case .declined: "The other device declined the transfer."
@@ -105,7 +113,7 @@ public enum TransferError: Error, Sendable, Equatable {
         case .connectionLost: "Connection lost. Both devices must be on the same Wi-Fi network."
         case .notEnoughSpace: "There isn't enough disk space for this transfer."
         case .diskFull: "The disk is full."
-        case .fileTooLarge: "A file is too large to transfer."
+        case .fileTooLarge: "A file is too large for the destination disk (for example, over 4 GB on a FAT32 drive)."
         case .unsupportedContent: "This kind of content isn't supported."
         case .unreachable: "Couldn't reach the device. Both devices must be on the same Wi-Fi network."
         case .localNetworkDenied: "Local network permission is off."

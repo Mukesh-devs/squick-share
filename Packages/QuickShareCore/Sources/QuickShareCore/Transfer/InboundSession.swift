@@ -369,7 +369,7 @@ actor InboundSession {
 
     private func fail(_ error: TransferError, notifyPeer: Bool) async {
         guard state != .done else { return }
-        diagnostics.error(tag, "transfer failed in state \(state): \(error)")
+        diagnostics.error(tag, "transfer failed in state \(state): \(error.logDescription)")
         if notifyPeer, let transport {
             try? await transport.send(SharingFrames.cancel())
             try? await transport.send(OfflineFrames.disconnection())

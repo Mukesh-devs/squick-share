@@ -72,6 +72,14 @@ final class AppModel: ObservableObject {
         monitor.start(queue: DispatchQueue(label: "squickshare.path"))
         pathMonitor = monitor
 
+        // Re-register Bonjour after sleep: the network may have changed.
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.diagnostics.info("app", "woke from sleep; restarting discovery")
+                self?.restartNetworking()
+            }
+        }
+
         ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -232,6 +240,20 @@ final class AppModel: ObservableObject {
     func decline(_ request: IncomingTransferRequest) {
         removeRequest(request.id)
         receiver?.respond(to: request.id, accept: false, destination: nil)
+    }
+
+    /// The user saw a different PIN on the other device: decline and explain.
+    func declineForPinMismatch(_ request: IncomingTransferRequest) {
+        diagnostics.info("app", "user declined: PIN mismatch")
+        decline(request)
+        notice = "Declined because the PINs didn't match. Another device may have tried to connect. Try again from the phone."
+    }
+
+    /// Outgoing: the phone shows a different PIN.
+    func cancelForPinMismatch(_ transfer: ActiveTransfer) {
+        diagnostics.info("app", "user cancelled: PIN mismatch")
+        cancel(transfer)
+        notice = "Cancelled because the PINs didn't match. Make sure you picked the right device and try again."
     }
 
     private func removeRequest(_ id: UUID) {

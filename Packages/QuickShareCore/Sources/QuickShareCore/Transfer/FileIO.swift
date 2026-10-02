@@ -87,10 +87,10 @@ final class IncomingFileWriter: @unchecked Sendable {
     static func map(_ error: Error) -> TransferError {
         let ns = error as NSError
         if ns.domain == NSCocoaErrorDomain, ns.code == NSFileWriteOutOfSpaceError { return .diskFull }
-        if ns.domain == NSPOSIXErrorDomain, ns.code == Int(ENOSPC) || ns.code == Int(EDQUOT) { return .diskFull }
-        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError,
-           underlying.domain == NSPOSIXErrorDomain, underlying.code == Int(ENOSPC) {
-            return .diskFull
+        let posix = ns.domain == NSPOSIXErrorDomain ? ns : ns.userInfo[NSUnderlyingErrorKey] as? NSError
+        if let posix, posix.domain == NSPOSIXErrorDomain {
+            if posix.code == Int(ENOSPC) || posix.code == Int(EDQUOT) { return .diskFull }
+            if posix.code == Int(EFBIG) { return .fileTooLarge }   // e.g. a 4 GB limit on FAT32 volumes
         }
         return .fileAccess(ns.localizedDescription)
     }

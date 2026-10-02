@@ -44,20 +44,35 @@ public enum BrowserStatus: Sendable, Equatable {
 public final class NearbyBrowser: @unchecked Sendable {
     private let lock = NSLock()
     private var browser: NWBrowser?
+    private var generation = 0
+    private var running = false
+    private var requeryTimer: DispatchSourceTimer?
+    /// Devices by Bonjour instance name, with when they were last reported.
+    private var seen: [String: (device: DiscoveredDevice, lastSeen: Date)] = [:]
+    /// Instance names in the current browser's latest result set.
+    private var currentIDs: Set<String> = []
+    private var lastLoggedSummary = ""
     private let queue = DispatchQueue(label: "squickshare.browser")
     private let diagnostics: Diagnostics
     private let interface: InterfaceRestriction
+    private let requeryInterval: TimeInterval
     private let updateHandler: @Sendable ([DiscoveredDevice]) -> Void
     private let statusHandler: @Sendable (BrowserStatus) -> Void
     /// Our own receiver's endpoint ID, so we don't list ourselves.
     private let ownEndpointIDs: @Sendable () -> Set<String>
+    /// How long a device stays listed after the browser that saw it was replaced.
+    private static let retention: TimeInterval = 12
 
-    public init(diagnostics: Diagnostics, interface: InterfaceRestriction = .any,
+    /// - Parameter requeryInterval: restart the mDNS query this often (0 = never). mDNS queriers back off
+    ///   exponentially, so a phone that joins the network after browsing started can otherwise go
+    ///   unnoticed for a long time. Results are merged across restarts so the list doesn't flicker.
+    public init(diagnostics: Diagnostics, interface: InterfaceRestriction = .any, requeryInterval: TimeInterval = 5,
                 excluding ownEndpointIDs: @escaping @Sendable () -> Set<String> = { [] },
                 updateHandler: @escaping @Sendable ([DiscoveredDevice]) -> Void,
                 statusHandler: @escaping @Sendable (BrowserStatus) -> Void = { _ in }) {
         self.diagnostics = diagnostics
         self.interface = interface
+        self.requeryInterval = requeryInterval
         self.ownEndpointIDs = ownEndpointIDs
         self.updateHandler = updateHandler
         self.statusHandler = statusHandler
@@ -66,7 +81,46 @@ public final class NearbyBrowser: @unchecked Sendable {
     public func start() {
         lock.lock()
         defer { lock.unlock() }
-        guard browser == nil else { return }
+        guard !running else { return }
+        running = true
+        startBrowserLocked(initial: true)
+        if requeryInterval > 0 {
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            timer.schedule(deadline: .now() + requeryInterval, repeating: requeryInterval, leeway: .milliseconds(500))
+            timer.setEventHandler { [weak self] in self?.requery() }
+            timer.resume()
+            requeryTimer = timer
+        }
+    }
+
+    public func stop() {
+        lock.lock()
+        running = false
+        generation += 1
+        requeryTimer?.cancel()
+        requeryTimer = nil
+        let current = browser
+        browser = nil
+        seen.removeAll()
+        currentIDs.removeAll()
+        lock.unlock()
+        current?.cancel()
+    }
+
+    private func requery() {
+        lock.lock()
+        guard running else { return lock.unlock() }
+        let old = browser
+        startBrowserLocked(initial: false)
+        lock.unlock()
+        old?.cancel()
+        publishMerged()   // drops devices that have not been seen recently
+    }
+
+    private func startBrowserLocked(initial: Bool) {
+        generation += 1
+        let generation = self.generation
+        currentIDs = []
         let parameters = NWParameters()
         parameters.includePeerToPeer = false
         switch interface {
@@ -80,8 +134,10 @@ public final class NearbyBrowser: @unchecked Sendable {
         browser.stateUpdateHandler = { state in
             switch state {
             case .ready:
-                diagnostics.info("browser", "browsing for \(ServiceName.serviceType)")
-                statusHandler(.browsing)
+                if initial {
+                    diagnostics.info("browser", "browsing for \(ServiceName.serviceType)")
+                    statusHandler(.browsing)
+                }
             case .waiting(let error), .failed(let error):
                 if case .dns(let code) = error, code == -65570 {
                     diagnostics.error("browser", "local network permission denied")
@@ -91,27 +147,19 @@ public final class NearbyBrowser: @unchecked Sendable {
                     statusHandler(.failed(error.localizedDescription))
                 }
             case .cancelled:
-                statusHandler(.stopped)
+                if initial { break }
             default:
                 break
             }
         }
         browser.browseResultsChangedHandler = { [weak self] results, _ in
-            self?.publish(results)
+            self?.publish(results, generation: generation)
         }
         browser.start(queue: queue)
         self.browser = browser
     }
 
-    public func stop() {
-        lock.lock()
-        let current = browser
-        browser = nil
-        lock.unlock()
-        current?.cancel()
-    }
-
-    private func publish(_ results: Set<NWBrowser.Result>) {
+    private func publish(_ results: Set<NWBrowser.Result>, generation: Int) {
         let own = ownEndpointIDs()
         var devices: [DiscoveredDevice] = []
         for result in results {
@@ -132,9 +180,27 @@ public final class NearbyBrowser: @unchecked Sendable {
                 type: info.deviceType, endpoint: SendableEndpoint(value: result.endpoint), endpointInfo: info
             ))
         }
+        lock.lock()
+        guard running else { return lock.unlock() }
+        let now = Date()
+        for device in devices { seen[device.id] = (device, now) }
+        if generation == self.generation { currentIDs = Set(devices.map(\.id)) }
+        lock.unlock()
+        publishMerged()
+    }
+
+    private func publishMerged() {
+        lock.lock()
+        let now = Date()
+        seen = seen.filter { currentIDs.contains($0.key) || now.timeIntervalSince($0.value.lastSeen) < Self.retention }
+        var devices = seen.values.map(\.device)
         devices.sort { ($0.name ?? "~") < ($1.name ?? "~") }
-        diagnostics.debug("browser", "found \(devices.count) device(s): "
-            + devices.map { "\($0.endpointID)/\($0.type)\($0.name == nil ? "/hidden" : "")\($0.endpointInfo.qrCodeData != nil ? "/qr" : "")" }.joined(separator: ", "))
+        let summary = "found \(devices.count) device(s): "
+            + devices.map { "\($0.endpointID)/\($0.type)\($0.name == nil ? "/hidden" : "")\($0.endpointInfo.qrCodeData != nil ? "/qr" : "")" }.joined(separator: ", ")
+        let changed = summary != lastLoggedSummary
+        lastLoggedSummary = summary
+        lock.unlock()
+        if changed { diagnostics.debug("browser", summary) }
         updateHandler(devices)
     }
 }

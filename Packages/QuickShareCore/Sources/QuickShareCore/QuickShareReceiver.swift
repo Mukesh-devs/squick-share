@@ -36,6 +36,12 @@ public final class QuickShareReceiver: @unchecked Sendable {
     private let queue = DispatchQueue(label: "squickshare.receiver")
     private var configuration: Configuration
     private var listener: NWListener?
+    private var generation = 0
+    private var registered = false
+    private var reannounceTimer: DispatchSourceTimer?
+    /// EndpointInfo's 16 metadata bytes, random but stable for this receiver so the TXT record only
+    /// changes when the user changes something.
+    private let endpointMetadata = secureRandomBytes(16)
     private var sessions: [UUID: InboundSession] = [:]
     /// Our endpoint ID, so a browser on this Mac can hide our own advertisement.
     public let endpointID = ServiceName.randomEndpointID()
@@ -56,8 +62,7 @@ public final class QuickShareReceiver: @unchecked Sendable {
     public func start() {
         lock.lock()
         defer { lock.unlock() }
-        listener?.cancel()
-        listener = nil
+        stopLocked()
 
         let parameters = NWParameters.tcp
         parameters.includePeerToPeer = false
@@ -79,25 +84,22 @@ public final class QuickShareReceiver: @unchecked Sendable {
             return
         }
 
+        generation += 1
+        let generation = self.generation
+        registered = false
         if configuration.advertise {
-            let options = configuration.identity.options
-            let name = ServiceName.make(endpointID: endpointID, extraBytes: options.serviceNameExtraBytes)
-            let info = EndpointInfo(name: configuration.identity.name, deviceType: options.advertisedDeviceType,
-                                    version: options.endpointInfoVersion, qrCodeData: configuration.qrCodeData)
-            let txt = NWTXTRecord(["n": Base64URL.encode(info.serialize())])
-            newListener.service = NWListener.Service(name: name, type: ServiceName.serviceType, domain: nil, txtRecord: txt)
-            diagnostics.info("receiver", "advertising \(ServiceName.serviceType) endpoint=\(endpointID) "
-                + "infoVersion=\(options.endpointInfoVersion) type=\(options.advertisedDeviceType) nameBytes=\(options.serviceNameExtraBytes ? 10 : 8)")
+            newListener.service = makeServiceLocked()
         }
 
         let diagnostics = self.diagnostics
         let statusHandler = self.statusHandler
-        newListener.stateUpdateHandler = { [weak newListener] state in
+        newListener.stateUpdateHandler = { [weak self, weak newListener] state in
             switch state {
             case .ready:
                 let port = newListener?.port?.rawValue ?? 0
                 diagnostics.info("receiver", "listening on port \(port)")
                 statusHandler(.advertising(port: port))
+                self?.scheduleRegistrationWatchdog(generation: generation, attempt: 1)
             case .waiting(let error), .failed(let error):
                 if case .dns(let code) = error, code == -65570 {
                     diagnostics.error("receiver", "local network permission denied")
@@ -112,10 +114,14 @@ public final class QuickShareReceiver: @unchecked Sendable {
                 break
             }
         }
-        newListener.serviceRegistrationUpdateHandler = { change in
+        newListener.serviceRegistrationUpdateHandler = { [weak self] change in
             switch change {
-            case .add: diagnostics.debug("receiver", "Bonjour service registered")
-            case .remove: diagnostics.debug("receiver", "Bonjour service removed")
+            case .add:
+                diagnostics.debug("receiver", "Bonjour service registered")
+                self?.setRegistered(true, generation: generation)
+            case .remove:
+                diagnostics.debug("receiver", "Bonjour service removed")
+                self?.setRegistered(false, generation: generation)
             @unknown default: break
             }
         }
@@ -124,27 +130,127 @@ public final class QuickShareReceiver: @unchecked Sendable {
         }
         newListener.start(queue: queue)
         listener = newListener
+        scheduleReannounceTimerLocked(generation: generation)
     }
 
     public func stop() {
         lock.lock()
-        let current = listener
-        listener = nil
+        stopLocked()
         lock.unlock()
-        current?.cancel()
     }
 
-    /// Updates name, options or interface. Restarts advertising if it is running.
+    private func stopLocked() {
+        generation += 1
+        reannounceTimer?.cancel()
+        reannounceTimer = nil
+        listener?.cancel()
+        listener = nil
+        registered = false
+    }
+
+    public var isRunning: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return listener != nil
+    }
+
+    /// Applies a new name, options or interface. A running listener is restarted only when the interface
+    /// changes; otherwise the Bonjour advertisement is updated in place (same port, no gap for peers).
     public func update(_ configuration: Configuration) {
         lock.lock()
         let running = listener != nil
+        let interfaceChanged = self.configuration.interface != configuration.interface
+        let intervalChanged = self.configuration.identity.options.reannounceInterval != configuration.identity.options.reannounceInterval
         var updated = configuration
         updated.advertise = self.configuration.advertise
         updated.port = self.configuration.port
         updated.qrCodeData = self.configuration.qrCodeData
+        let changed = updated.identity != self.configuration.identity || interfaceChanged
         self.configuration = updated
+        if running, intervalChanged { scheduleReannounceTimerLocked(generation: generation) }
         lock.unlock()
-        if running { start() }
+        guard running, changed else { return }
+        if interfaceChanged { start() } else { reannounce(reason: "settings changed") }
+    }
+
+    /// Re-registers the Bonjour service on the running listener: a goodbye, then a fresh announcement.
+    /// Phones whose mDNS queries went out before they joined this network only notice the Mac
+    /// through such an announcement (seen with a Redmi that drops Wi-Fi when Quick Share opens).
+    public func reannounce(reason: String = "manual") {
+        lock.lock()
+        guard let listener, configuration.advertise else {
+            lock.unlock()
+            return
+        }
+        let service = makeServiceLocked(log: false)
+        let generation = self.generation
+        lock.unlock()
+        diagnostics.debug("receiver", "re-announcing Bonjour service (\(reason))")
+        queue.async { [weak self] in
+            listener.service = nil
+            self?.queue.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self, self.currentGeneration == generation else { return }
+                listener.service = service
+            }
+        }
+    }
+
+    private var currentGeneration: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return generation
+    }
+
+    private func makeServiceLocked(log: Bool = true) -> NWListener.Service {
+        let options = configuration.identity.options
+        let name = ServiceName.make(endpointID: endpointID, extraBytes: options.serviceNameExtraBytes)
+        let info = EndpointInfo(name: configuration.identity.name, deviceType: options.advertisedDeviceType,
+                                version: options.endpointInfoVersion, metadata: endpointMetadata,
+                                qrCodeData: configuration.qrCodeData)
+        let txt = NWTXTRecord(["n": Base64URL.encode(info.serialize())])
+        if log {
+            diagnostics.info("receiver", "advertising \(ServiceName.serviceType) endpoint=\(endpointID) "
+                + "infoVersion=\(options.endpointInfoVersion) type=\(options.advertisedDeviceType) "
+                + "nameBytes=\(options.serviceNameExtraBytes ? 10 : 8) reannounce=\(Int(options.reannounceInterval))s")
+        }
+        return NWListener.Service(name: name, type: ServiceName.serviceType, domain: nil, txtRecord: txt)
+    }
+
+    private func setRegistered(_ value: Bool, generation: Int) {
+        lock.lock()
+        if generation == self.generation { registered = value }
+        lock.unlock()
+    }
+
+    /// If Bonjour has not confirmed the registration a few seconds after the listener is ready
+    /// (e.g. while the Local Network permission prompt is open), register again.
+    private func scheduleRegistrationWatchdog(generation: Int, attempt: Int) {
+        guard configuration.advertise, attempt <= 6 else { return }
+        queue.asyncAfter(deadline: .now() + Double(5 * attempt)) { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            let pending = self.generation == generation && !self.registered && self.listener != nil
+            self.lock.unlock()
+            guard pending else { return }
+            self.diagnostics.info("receiver", "Bonjour registration not confirmed (attempt \(attempt)); registering again")
+            self.reannounce(reason: "registration watchdog")
+            self.scheduleRegistrationWatchdog(generation: generation, attempt: attempt + 1)
+        }
+    }
+
+    private func scheduleReannounceTimerLocked(generation: Int) {
+        reannounceTimer?.cancel()
+        reannounceTimer = nil
+        let interval = configuration.identity.options.reannounceInterval
+        guard configuration.advertise, interval > 0 else { return }
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + interval, repeating: interval, leeway: .seconds(1))
+        timer.setEventHandler { [weak self] in
+            guard let self, self.currentGeneration == generation else { return }
+            self.reannounce(reason: "periodic")
+        }
+        timer.resume()
+        reannounceTimer = timer
     }
 
     /// The port the listener is bound to, once ready.

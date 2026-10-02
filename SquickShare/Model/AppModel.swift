@@ -76,7 +76,7 @@ final class AppModel: ObservableObject {
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.diagnostics.info("app", "woke from sleep; restarting discovery")
-                self?.restartNetworking()
+                self?.restartNetworking(full: true)
             }
         }
 
@@ -95,7 +95,7 @@ final class AppModel: ObservableObject {
         hasNetwork = available
         diagnostics.info("app", "network \(available ? "available" : "unavailable")")
         // Re-register Bonjour on a new network.
-        if available { restartNetworking() }
+        if available { restartNetworking(full: true) }
     }
 
     private func tick() {
@@ -121,8 +121,9 @@ final class AppModel: ObservableObject {
         var configuration = QuickShareReceiver.Configuration(identity: identity)
         configuration.interface = settings.interface
         if let receiver {
+            // Updates the advertisement in place when running; starts it when it was stopped.
             receiver.update(configuration)
-            receiver.start()
+            if !receiver.isRunning { receiver.start() }
             return
         }
         let ref = weakRef
@@ -143,8 +144,12 @@ final class AppModel: ObservableObject {
         receiverStatus = .stopped
     }
 
-    private func restartNetworking() {
-        if settings.visibility != .hidden { startReceiver() }
+    /// - Parameter full: restart the listener (after a network change or wake) instead of updating it in place.
+    private func restartNetworking(full: Bool = false) {
+        if settings.visibility != .hidden {
+            if full, let receiver { receiver.stop() }
+            startReceiver()
+        }
         if browser != nil {
             stopBrowser()
             startBrowser()
@@ -532,6 +537,12 @@ final class AppModel: ObservableObject {
         pendingSendItems = [.text("Hello from the Mac")]
     }
     #endif
+
+    /// Sends a fresh Bonjour announcement so phones that just joined the network see this Mac.
+    func announceAgain() {
+        diagnostics.info("app", "user asked to announce again")
+        receiver?.reannounce(reason: "user")
+    }
 
     func openLocalNetworkSettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork") {

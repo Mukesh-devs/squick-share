@@ -13,7 +13,7 @@ enum Handshake {
         }
         let device = remoteDevice(from: request.v1.connectionRequest)
         diagnostics.info(tag, "connection request from endpoint \(device.endpointID) type=\(device.type) "
-            + "mediums=\(request.v1.connectionRequest.mediums) infoLen=\(request.v1.connectionRequest.endpointInfo.count) "
+            + "mediums=\(request.v1.connectionRequest.mediums.map { "\($0)" }.joined(separator: ",")) infoLen=\(request.v1.connectionRequest.endpointInfo.count) "
             + "keepAlive=\(request.v1.connectionRequest.keepAliveIntervalMillis)/\(request.v1.connectionRequest.keepAliveTimeoutMillis)ms")
 
         var server = Ukey2Server()

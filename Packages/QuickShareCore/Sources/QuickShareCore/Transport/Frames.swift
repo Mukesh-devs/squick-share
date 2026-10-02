@@ -143,6 +143,9 @@ extension OfflineFrame {
         case .bandwidthUpgradeNegotiation:
             let b = v1.bandwidthUpgradeNegotiation
             return "BANDWIDTH_UPGRADE_NEGOTIATION(\(b.eventType) medium=\(b.upgradePathInfo.medium))"
+        case .bandwidthUpgradeRetry:
+            let r = v1.bandwidthUpgradeRetry
+            return "BANDWIDTH_UPGRADE_RETRY(request=\(r.isRequest) mediums=\(r.supportedMedium.map { "\($0)" }.joined(separator: ",")))"
         case .connectionResponse:
             return "CONNECTION_RESPONSE(\(v1.connectionResponse.response) os=\(v1.connectionResponse.osInfo.type))"
         default:

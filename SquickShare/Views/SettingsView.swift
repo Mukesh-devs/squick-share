@@ -147,7 +147,7 @@ struct DiagnosticsSettings: View {
     }
 }
 
-/// Switches for the protocol details that still need device testing (docs/PROTOCOL_NOTES.md §13).
+/// Switches for the protocol details that still need device testing (docs/PROTOCOL_NOTES.md §14).
 struct ProtocolOptionsEditor: View {
     @Binding var options: ProtocolOptions
 
@@ -168,6 +168,13 @@ struct ProtocolOptionsEditor: View {
             .help("Turning this off makes sending to RQuickShare hang: it waits for the sender's response first.")
         Toggle("End files with an empty last chunk", isOn: $options.sendTrailingEmptyChunk)
         Toggle("Reply UPGRADE_FAILURE to bandwidth upgrades (V9)", isOn: $options.rejectBandwidthUpgrade)
+        Picker("Re-announce on the network", selection: $options.reannounceInterval) {
+            Text("Never").tag(TimeInterval(0))
+            Text("Every 10 s").tag(TimeInterval(10))
+            Text("Every 20 s").tag(TimeInterval(20))
+            Text("Every 60 s").tag(TimeInterval(60))
+        }
+        .help("Phones that rejoin Wi-Fi after opening Quick Share only notice the Mac after a fresh announcement")
         Stepper("Keep-alive every \(Int(options.keepAliveInterval)) s", value: $options.keepAliveInterval, in: 2...20, step: 1)
         Stepper("Idle timeout \(Int(options.idleTimeout)) s", value: $options.idleTimeout, in: 15...180, step: 15)
         Picker("Send chunk size", selection: $options.chunkSize) {

@@ -69,6 +69,10 @@ struct PopoverView: View {
                     ForEach(Visibility.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.inline)
+                Divider()
+                Button("Announce Again") { model.announceAgain() }
+                    .disabled(settings.visibility == .hidden)
+                    .help("Tell nearby phones about this Mac now (useful if a phone just reconnected to Wi-Fi)")
             } label: {
                 Image(systemName: "eye")
             }

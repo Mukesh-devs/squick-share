@@ -120,4 +120,44 @@ final class DiscoveryIntegrationTests: XCTestCase {
         await receiverEvents.wait("text") { if case .receivedText(_, "hello via QR", _) = $0 { true } else { false } }
         XCTAssertTrue(logs.all.contains { $0.contains("qr_code_handshake_data=64 B") }, "sender must sign the auth string for QR peers")
     }
+
+    func testReannounceAndRenameKeepThePort() async throws {
+        let name = "Mac \(UUID().uuidString.prefix(6))"
+        let receiver = QuickShareReceiver(configuration: .init(identity: LocalIdentity(name: name)),
+                                          diagnostics: .silent, eventHandler: { _ in })
+        receiver.start()
+        defer { receiver.stop() }
+        let store = DeviceStore()
+        let browser = NearbyBrowser(diagnostics: .silent, requeryInterval: 1, updateHandler: { store.devices = $0 })
+        browser.start()
+        defer { browser.stop() }
+        let first = await waitForDevice(store) { $0.name == name }
+        XCTAssertNotNil(first, "receiver not discovered")
+        let port = try XCTUnwrap(receiver.port)
+
+        receiver.reannounce(reason: "test")
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let renamed = name + " renamed"
+        receiver.update(.init(identity: LocalIdentity(name: renamed)))
+        let found = await waitForDevice(store) { $0.name == renamed }
+        XCTAssertNotNil(found, "renamed advertisement not seen")
+        XCTAssertEqual(receiver.port, port, "re-announcing must not change the listening port")
+        XCTAssertTrue(receiver.isRunning)
+    }
+
+    /// A receiver that appears after browsing started (a phone joining Wi-Fi late) is still found.
+    func testLateReceiverIsFound() async throws {
+        let store = DeviceStore()
+        let browser = NearbyBrowser(diagnostics: .silent, requeryInterval: 2, updateHandler: { store.devices = $0 })
+        browser.start()
+        defer { browser.stop() }
+        try await Task.sleep(nanoseconds: 3_000_000_000)
+        let name = "Late \(UUID().uuidString.prefix(6))"
+        let receiver = QuickShareReceiver(configuration: .init(identity: LocalIdentity(name: name)),
+                                          diagnostics: .silent, eventHandler: { _ in })
+        receiver.start()
+        defer { receiver.stop() }
+        let found = await waitForDevice(store, timeout: 15) { $0.name == name }
+        XCTAssertNotNil(found, "late receiver not discovered")
+    }
 }

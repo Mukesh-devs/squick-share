@@ -147,7 +147,7 @@ public enum TransferEvent: Sendable {
     }
 }
 
-/// Protocol knobs for uncertain behavior (PROTOCOL_NOTES §13 VERIFY items).
+/// Protocol knobs for uncertain behavior (PROTOCOL_NOTES §14 VERIFY items).
 /// The app exposes them under Settings → Diagnostics so they can change without a rebuild.
 public struct ProtocolOptions: Sendable, Codable, Equatable {
     /// EndpointInfo version bits (V2). Google parses 0 and 1.
@@ -172,8 +172,30 @@ public struct ProtocolOptions: Sendable, Codable, Equatable {
     public var idleTimeout: TimeInterval = 45
     /// File chunk size for sending.
     public var chunkSize: Int = 512 * 1024
+    /// Re-announce our Bonjour service this often while visible (0 = never). Phones that rejoin Wi-Fi
+    /// after starting their search only see the Mac after a fresh announcement.
+    public var reannounceInterval: TimeInterval = 20
 
     public init() {}
+
+    public init(from decoder: Decoder) throws {
+        // Fields added later fall back to their defaults, so saved settings from older builds still load.
+        let defaults = ProtocolOptions()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        endpointInfoVersion = try c.decodeIfPresent(UInt8.self, forKey: .endpointInfoVersion) ?? defaults.endpointInfoVersion
+        advertisedDeviceType = try c.decodeIfPresent(DeviceType.self, forKey: .advertisedDeviceType) ?? defaults.advertisedDeviceType
+        serviceNameExtraBytes = try c.decodeIfPresent(Bool.self, forKey: .serviceNameExtraBytes) ?? defaults.serviceNameExtraBytes
+        sendOSInfo = try c.decodeIfPresent(Bool.self, forKey: .sendOSInfo) ?? defaults.sendOSInfo
+        sendLegacyStatusField = try c.decodeIfPresent(Bool.self, forKey: .sendLegacyStatusField) ?? defaults.sendLegacyStatusField
+        senderSendsConnectionResponseFirst = try c.decodeIfPresent(Bool.self, forKey: .senderSendsConnectionResponseFirst)
+            ?? defaults.senderSendsConnectionResponseFirst
+        sendTrailingEmptyChunk = try c.decodeIfPresent(Bool.self, forKey: .sendTrailingEmptyChunk) ?? defaults.sendTrailingEmptyChunk
+        rejectBandwidthUpgrade = try c.decodeIfPresent(Bool.self, forKey: .rejectBandwidthUpgrade) ?? defaults.rejectBandwidthUpgrade
+        keepAliveInterval = try c.decodeIfPresent(TimeInterval.self, forKey: .keepAliveInterval) ?? defaults.keepAliveInterval
+        idleTimeout = try c.decodeIfPresent(TimeInterval.self, forKey: .idleTimeout) ?? defaults.idleTimeout
+        chunkSize = try c.decodeIfPresent(Int.self, forKey: .chunkSize) ?? defaults.chunkSize
+        reannounceInterval = try c.decodeIfPresent(TimeInterval.self, forKey: .reannounceInterval) ?? defaults.reannounceInterval
+    }
 }
 
 /// Identity we present to peers.

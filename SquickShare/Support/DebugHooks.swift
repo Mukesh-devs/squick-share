@@ -33,6 +33,11 @@ extension AppModel {
         }
     }
 
+    func renderSnapshotsAndQuit() {
+        renderSnapshots()
+        NSApp.terminate(nil)
+    }
+
     private func renderSnapshots() {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("snapshots", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -58,11 +63,13 @@ extension AppModel {
         render(SendPanel(showsClose: true).environmentObject(self).frame(width: 332).padding(14), width: 360, "send-qr", directory, .aqua)
         hideQRCode()
         render(SendPanel(showsClose: true).environmentObject(self).frame(width: 332).padding(14), width: 360, "send-list", directory, .aqua)
+        render(MenuBarIconGallery(), width: 560, "menubar-icons", directory, .aqua)
         diagnostics.info("debug", "snapshots written")
     }
 
     private func render<V: View>(_ view: V, width: CGFloat, _ name: String, _ directory: URL, _ appearance: NSAppearance.Name) {
-        let hosting = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
+        let hosting = NSHostingView(rootView: view.environment(\.colorScheme, appearance == .darkAqua ? .dark : .light)
+            .background(Color(nsColor: .windowBackgroundColor)))
         hosting.appearance = NSAppearance(named: appearance)
         let size = hosting.fittingSize
         hosting.frame = NSRect(x: 0, y: 0, width: max(width, size.width), height: max(size.height, 40))
@@ -73,6 +80,47 @@ extension AppModel {
         guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
         hosting.cacheDisplay(in: hosting.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("\(name).png"))
+    }
+}
+/// The menu bar icon in each state, enlarged, on light and dark menu bars.
+private struct MenuBarIconGallery: View {
+    let states: [(String, MenuBarState)] = [
+        ("Visible", MenuBarState(activity: .idle(hidden: false), needsAttention: false)),
+        ("Hidden", MenuBarState(activity: .idle(hidden: true), needsAttention: false)),
+        ("Request", MenuBarState(activity: .idle(hidden: false), needsAttention: true)),
+        ("Receiving 30%", MenuBarState(activity: .transferring(progress: 0.3, incoming: true, outgoing: false), needsAttention: false)),
+        ("Sending 75%", MenuBarState(activity: .transferring(progress: 0.75, incoming: false, outgoing: true), needsAttention: false)),
+        ("Both + request", MenuBarState(activity: .transferring(progress: 0.5, incoming: true, outgoing: true), needsAttention: true)),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach([false, true], id: \.self) { dark in
+                HStack(spacing: 18) {
+                    ForEach(states, id: \.0) { label, state in
+                        VStack(spacing: 4) {
+                            HStack(spacing: 6) {
+                                icon(state, scale: 1, dark: dark)
+                                icon(state, scale: 3, dark: dark)
+                            }
+                            Text(label).font(.caption2).foregroundStyle(dark ? .white : .black)
+                        }
+                    }
+                }
+                .padding(10)
+                .background(dark ? Color(white: 0.15) : Color(white: 0.93))
+            }
+        }
+        .padding(8)
+    }
+
+    private func icon(_ state: MenuBarState, scale: CGFloat, dark: Bool) -> some View {
+        Image(nsImage: MenuBarIcon.image(for: state))
+            .renderingMode(.template)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: MenuBarIcon.size.width * scale, height: MenuBarIcon.size.height * scale)
+            .foregroundStyle(dark ? Color.white : Color.black)
     }
 }
 #endif

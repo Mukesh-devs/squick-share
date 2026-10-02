@@ -21,8 +21,8 @@ struct MenuBarLabel: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        Image(systemName: model.menuBarSymbol)
-            .accessibilityLabel("squick-share")
+        Image(nsImage: MenuBarIcon.image(for: model.menuBarState))
+            .accessibilityLabel(model.menuBarAccessibilityLabel)
     }
 }
 
@@ -47,6 +47,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        // SQUICKSHARE_SNAPSHOT=1: render the UI to PNGs and quit, without starting the network.
+        if ProcessInfo.processInfo.environment["SQUICKSHARE_SNAPSHOT"] != nil {
+            MainActor.assumeIsolated { model.renderSnapshotsAndQuit() }
+            return
+        }
+        #endif
         MainActor.assumeIsolated { model.start() }
     }
 

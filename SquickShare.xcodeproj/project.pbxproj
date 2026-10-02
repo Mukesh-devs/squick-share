@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1C8180DAA439549ED650AA23 /* WindowCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D3068982DE81F0340570DC /* WindowCoordinator.swift */; };
+		1E4434C21BF9CEB97C96EB1B /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B6A2DD4D88070E5E8FD9DD6 /* MenuBarIcon.swift */; };
 		1F6EB5B0A497365AFD6F6955 /* SquickShareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1C1B59E86FEE5432EB5148 /* SquickShareApp.swift */; };
 		26C1EA57F54F129A3D0951F5 /* SendPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F9A23DC9F7CD676C333BC9 /* SendPanel.swift */; };
 		36350E14355F4D91FDC34CD6 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 219F88AD8923297688AD349E /* NotificationManager.swift */; };
@@ -54,6 +55,7 @@
 		11F9A23DC9F7CD676C333BC9 /* SendPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendPanel.swift; sourceTree = "<group>"; };
 		14D3068982DE81F0340570DC /* WindowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCoordinator.swift; sourceTree = "<group>"; };
 		16C6E42964663E785924539A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1B6A2DD4D88070E5E8FD9DD6 /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		1B94746468F6A4CFA14FCFDE /* QuickShareCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = QuickShareCore; path = Packages/QuickShareCore; sourceTree = SOURCE_ROOT; };
 		219F88AD8923297688AD349E /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		5E850F5D5EBB3FBC0CAD35E5 /* SquickShare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SquickShare.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -113,6 +115,7 @@
 		3CC37249521BB98583A6569C /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				1B6A2DD4D88070E5E8FD9DD6 /* MenuBarIcon.swift */,
 				DC778C4C543A422B666075D6 /* PopoverView.swift */,
 				11F9A23DC9F7CD676C333BC9 /* SendPanel.swift */,
 				F27C6FA09F1BC67C352D71A3 /* SettingsView.swift */,
@@ -280,6 +283,7 @@
 				63841E0F6423EF57CEF7C8B9 /* AppSettings.swift in Sources */,
 				84885805985A572D24F7061D /* DebugHooks.swift in Sources */,
 				43609D4679D942BCDFCEEFF9 /* DiagnosticsLog.swift in Sources */,
+				1E4434C21BF9CEB97C96EB1B /* MenuBarIcon.swift in Sources */,
 				36350E14355F4D91FDC34CD6 /* NotificationManager.swift in Sources */,
 				B77485E507E4EE211A6AB1A4 /* PopoverView.swift in Sources */,
 				26C1EA57F54F129A3D0951F5 /* SendPanel.swift in Sources */,

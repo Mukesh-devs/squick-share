@@ -175,6 +175,57 @@ final class AppModel: ObservableObject {
         receiverStatus == .localNetworkDenied || browserStatus == .localNetworkDenied
     }
 
+    /// Transfers still running (not completed or failed).
+    var runningTransfers: [ActiveTransfer] { transfers.filter { !$0.isFinished } }
+
+    var menuBarState: MenuBarState {
+        let running = runningTransfers
+        let attention = !pendingRequests.isEmpty
+        guard !running.isEmpty else {
+            return MenuBarState(activity: .idle(hidden: settings.visibility == .hidden), needsAttention: attention)
+        }
+        let total = running.reduce(Int64(0)) { $0 + $1.totalBytes }
+        let done = running.reduce(Int64(0)) { $0 + $1.bytes }
+        let fraction = total > 0 ? (Double(done) / Double(total) * 50).rounded() / 50 : 0
+        return MenuBarState(activity: .transferring(progress: fraction,
+                                                    incoming: running.contains { $0.direction == .incoming },
+                                                    outgoing: running.contains { $0.direction == .outgoing }),
+                            needsAttention: attention)
+    }
+
+    var menuBarAccessibilityLabel: String {
+        var parts = ["squick-share"]
+        if let activity = activitySummary { parts.append(activity) }
+        if !pendingRequests.isEmpty { parts.append("request waiting") }
+        return parts.joined(separator: ", ")
+    }
+
+    /// One line describing what is happening right now, or nil when idle.
+    var activitySummary: String? {
+        if let request = pendingRequests.first {
+            return "\(request.device.name) wants to share"
+        }
+        let running = runningTransfers
+        guard let first = running.first else { return nil }
+        if running.count > 1 {
+            let total = running.reduce(Int64(0)) { $0 + $1.totalBytes }
+            let done = running.reduce(Int64(0)) { $0 + $1.bytes }
+            let percent = total > 0 ? Int(Double(done) / Double(total) * 100) : 0
+            return "\(running.count) transfers · \(percent)%"
+        }
+        let verb = first.direction == .incoming ? "Receiving from" : "Sending to"
+        switch first.phase {
+        case .connecting:
+            return "Connecting to \(first.deviceName)…"
+        case .waitingForAcceptance:
+            return "Waiting for \(first.deviceName) to accept"
+        default:
+            var text = "\(verb) \(first.deviceName) · \(Int(first.fraction * 100))%"
+            if first.meter.bytesPerSecond > 0 { text += " · \(Format.speed(first.meter.bytesPerSecond))" }
+            return text
+        }
+    }
+
     var menuBarSymbol: String {
         if transfers.contains(where: { !$0.isFinished }) { return "arrow.up.arrow.down.circle.fill" }
         return settings.visibility == .hidden ? "antenna.radiowaves.left.and.right.slash" : "antenna.radiowaves.left.and.right"
@@ -268,6 +319,8 @@ final class AppModel: ObservableObject {
     }
 
     func cancel(_ transfer: ActiveTransfer) {
+        guard let index = transfers.firstIndex(where: { $0.id == transfer.id }), !transfers[index].cancelling else { return }
+        transfers[index].cancelling = true
         diagnostics.info("app", "user cancelled \(transfer.direction) transfer")
         if transfer.direction == .incoming { receiver?.cancel(transfer.id) } else { outgoing[transfer.id]?.cancel() }
     }

@@ -158,6 +158,8 @@ struct TransferRow: View {
                         .buttonStyle(.borderless)
                         .foregroundStyle(.secondary)
                         .accessibilityLabel("Dismiss")
+                } else if transfer.cancelling {
+                    Text("Cancelling…").font(.caption).foregroundStyle(.secondary)
                 } else {
                     Button("Cancel") { model.cancel(transfer) }
                         .buttonStyle(.borderless)

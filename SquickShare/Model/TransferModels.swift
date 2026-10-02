@@ -40,6 +40,8 @@ struct ActiveTransfer: Identifiable {
     var meter = SpeedMeter()
     var savedFiles: [URL] = []
     var texts: [String] = []
+    /// The user pressed Cancel; waiting for the session to stop.
+    var cancelling = false
 
     var fraction: Double { totalBytes > 0 ? min(1, Double(bytes) / Double(totalBytes)) : 0 }
 

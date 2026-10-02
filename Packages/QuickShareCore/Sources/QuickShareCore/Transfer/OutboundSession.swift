@@ -39,6 +39,8 @@ actor OutboundSession {
     private var allQueued = false
     private var userCancelled = false
     private var keepAliveTask: Task<Void, Never>?
+    /// The TCP connect in progress, so cancel can interrupt it instead of waiting for its timeout.
+    private var connectTask: Task<ByteStream, Error>?
 
     init(id: UUID = UUID(), makeStream: @escaping @Sendable () async throws -> ByteStream, items: [SendItem],
          device: RemoteDevice, identity: LocalIdentity, qrSession: QRCodeSession?, diagnostics: Diagnostics,
@@ -64,9 +66,16 @@ actor OutboundSession {
             if prepared.skippedEmpty > 0 { diagnostics.info(tag, "skipping \(prepared.skippedEmpty) empty files") }
             guard !files.isEmpty || !texts.isEmpty else { throw TransferError.unsupportedContent }
 
-            let stream = try await makeStream()
-            self.stream = stream
             if userCancelled { throw TransferError.cancelledByUser }
+            let connect = Task { try await makeStream() }
+            connectTask = connect
+            let stream = try await connect.value
+            connectTask = nil
+            self.stream = stream
+            if userCancelled {
+                stream.close()
+                throw TransferError.cancelledByUser
+            }
             let ukey = try await Handshake.runClient(stream: stream, endpointID: ServiceName.randomEndpointID(),
                                                      identity: identity, diagnostics: diagnostics, tag: tag)
             let transport = SecureTransport(stream: stream, keys: SecureChannelKeys(nextSecret: ukey.nextSecret, role: .client),
@@ -97,6 +106,7 @@ actor OutboundSession {
         guard state != .done, !userCancelled else { return }
         userCancelled = true
         diagnostics.info(tag, "user cancelled in state \(state)")
+        connectTask?.cancel()
         if let transport {
             try? await transport.send(SharingFrames.cancel())
             try? await transport.send(OfflineFrames.disconnection())

@@ -21,15 +21,16 @@ struct PopoverView: View {
                             }
                         }
                     }
-                    if model.pendingSendItems.isEmpty {
-                        DropZone()
-                    } else {
-                        SendPanel(showsClose: true)
-                    }
+                    // Things in progress come before starting something new.
                     if !model.transfers.isEmpty {
                         PopoverSection(title: "Active") {
                             ForEach(model.transfers) { TransferRow(transfer: $0) }
                         }
+                    }
+                    if model.pendingSendItems.isEmpty {
+                        DropZone()
+                    } else {
+                        SendPanel(showsClose: true)
                     }
                     if !model.recents.isEmpty {
                         PopoverSection(title: "Recent", trailing: AnyView(
@@ -51,17 +52,18 @@ struct PopoverView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: model.menuBarSymbol)
+            Image(systemName: model.runningTransfers.isEmpty ? model.menuBarSymbol : "arrow.up.arrow.down.circle.fill")
                 .font(.title2)
                 .foregroundStyle(settings.visibility == .hidden ? Color.secondary : Color.accentColor)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("squick-share").font(.headline)
-                Text(model.statusLine)
+                // While something is happening, say what; otherwise show visibility.
+                Text(model.activitySummary ?? model.statusLine)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(model.activitySummary == nil ? Color.secondary : Color.accentColor)
                     .lineLimit(1)
-                    .accessibilityLabel("Status: \(model.statusLine)")
+                    .accessibilityLabel("Status: \(model.activitySummary ?? model.statusLine)")
             }
             Spacer()
             Menu {

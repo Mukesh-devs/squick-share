@@ -223,4 +223,24 @@ final class LoopbackTests: XCTestCase {
         XCTAssertEqual(try sha256(of: destination.appendingPathComponent("big.bin")), hash)
         await senderEvents.wait("sender completed") { if case .completed = $0 { true } else { false } }
     }
+
+    /// Cancelling while the TCP connect is still pending must end the transfer at once,
+    /// not when the connect times out (seen with a phone that had left its Receive screen).
+    func testCancelDuringConnectIsImmediate() async throws {
+        let source = try tempDir()
+        let file = source.appendingPathComponent("a.bin")
+        try writeRandomFile(file, size: 10)
+        let sender = EventCollector()
+        let transfer = QuickShareSender(identity: LocalIdentity(name: "S"), diagnostics: .silent).start(
+            [.file(file, parentFolder: nil)], device: RemoteDevice(endpointID: "T", name: "T", type: .phone),
+            qrSession: nil, eventHandler: sender.handler) {
+            try await Task.sleep(nanoseconds: 30_000_000_000)   // a connect that never completes
+            throw TransferError.unreachable
+        }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let start = Date()
+        transfer.cancel()
+        await sender.wait("cancelled", timeout: 5) { if case .failed(_, .cancelledByUser) = $0 { true } else { false } }
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2)
+    }
 }

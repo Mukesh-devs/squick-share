@@ -24,6 +24,8 @@ public final class QuickShareReceiver: @unchecked Sendable {
         var advertise = true
         /// Fixed port for tests; nil picks any free port.
         var port: UInt16?
+        /// QR TLV to advertise, as a phone does after scanning a QR code (tests only).
+        var qrCodeData: Data?
 
         public init(identity: LocalIdentity) {
             self.identity = identity
@@ -81,7 +83,7 @@ public final class QuickShareReceiver: @unchecked Sendable {
             let options = configuration.identity.options
             let name = ServiceName.make(endpointID: endpointID, extraBytes: options.serviceNameExtraBytes)
             let info = EndpointInfo(name: configuration.identity.name, deviceType: options.advertisedDeviceType,
-                                    version: options.endpointInfoVersion)
+                                    version: options.endpointInfoVersion, qrCodeData: configuration.qrCodeData)
             let txt = NWTXTRecord(["n": Base64URL.encode(info.serialize())])
             newListener.service = NWListener.Service(name: name, type: ServiceName.serviceType, domain: nil, txtRecord: txt)
             diagnostics.info("receiver", "advertising \(ServiceName.serviceType) endpoint=\(endpointID) "
@@ -139,6 +141,7 @@ public final class QuickShareReceiver: @unchecked Sendable {
         var updated = configuration
         updated.advertise = self.configuration.advertise
         updated.port = self.configuration.port
+        updated.qrCodeData = self.configuration.qrCodeData
         self.configuration = updated
         lock.unlock()
         if running { start() }

@@ -216,6 +216,9 @@ actor InboundSession {
             guard state == .awaitingPairedKeyEncryption else {
                 throw TransferError.protocolViolation("PAIRED_KEY_ENCRYPTION in state \(state)")
             }
+            let pke = frame.v1.pairedKeyEncryption
+            diagnostics.debug(tag, "peer paired key: signedData=\(pke.signedData.count) B secretIDHash=\(pke.secretIDHash.count) B "
+                + "qr_code_handshake_data=\(pke.hasQrCodeHandshakeData ? "\(pke.qrCodeHandshakeData.count) B" : "none")")
             try await transport.send(SharingFrames.pairedKeyResult())
             enter(.awaitingPairedKeyResult, deadline: Limits.pairedKeyTimeout)
         case .pairedKeyResult:

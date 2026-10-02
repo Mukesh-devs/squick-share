@@ -147,7 +147,7 @@ struct DiagnosticsSettings: View {
     }
 }
 
-/// Switches for the protocol details that still need device testing (docs/PROTOCOL_NOTES.md §12).
+/// Switches for the protocol details that still need device testing (docs/PROTOCOL_NOTES.md §13).
 struct ProtocolOptionsEditor: View {
     @Binding var options: ProtocolOptions
 
@@ -165,6 +165,7 @@ struct ProtocolOptionsEditor: View {
         Toggle("Send OS info in ConnectionResponse", isOn: $options.sendOSInfo)
         Toggle("Send legacy status field in ConnectionResponse", isOn: $options.sendLegacyStatusField)
         Toggle("Sender sends ConnectionResponse first (V3)", isOn: $options.senderSendsConnectionResponseFirst)
+            .help("Turning this off makes sending to RQuickShare hang: it waits for the sender's response first.")
         Toggle("End files with an empty last chunk", isOn: $options.sendTrailingEmptyChunk)
         Toggle("Reply UPGRADE_FAILURE to bandwidth upgrades (V9)", isOn: $options.rejectBandwidthUpgrade)
         Stepper("Keep-alive every \(Int(options.keepAliveInterval)) s", value: $options.keepAliveInterval, in: 2...20, step: 1)

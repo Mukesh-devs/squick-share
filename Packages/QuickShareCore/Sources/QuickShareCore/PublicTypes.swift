@@ -139,7 +139,7 @@ public enum TransferEvent: Sendable {
     }
 }
 
-/// Protocol knobs for uncertain behavior (PROTOCOL_NOTES §12 VERIFY items).
+/// Protocol knobs for uncertain behavior (PROTOCOL_NOTES §13 VERIFY items).
 /// The app exposes them under Settings → Diagnostics so they can change without a rebuild.
 public struct ProtocolOptions: Sendable, Codable, Equatable {
     /// EndpointInfo version bits (V2). Google parses 0 and 1.

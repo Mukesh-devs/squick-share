@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .library(name: "QuickShareCore", targets: ["QuickShareCore"]),
+        .executable(name: "squick-share-cli", targets: ["SquickShareCLI"]),
     ],
     dependencies: [
         // Must be >= the protoc-gen-swift version used by scripts/generate-protos.sh.
@@ -15,6 +16,10 @@ let package = Package(
         .target(
             name: "QuickShareCore",
             dependencies: [.product(name: "SwiftProtobuf", package: "swift-protobuf")]
+        ),
+        .executableTarget(
+            name: "SquickShareCLI",
+            dependencies: ["QuickShareCore"]
         ),
         .testTarget(
             name: "QuickShareCoreTests",

@@ -28,9 +28,7 @@ It sends and receives files, folders, text and links with Android phones, Quick 
 
 ```sh
 git clone <this repo> squick-share && cd squick-share
-./scripts/build-release.sh                 # universal Release build, ad-hoc signed
-cp -R build/release/squick-share.app /Applications/
-open /Applications/squick-share.app
+./scripts/build-release.sh --install       # universal Release build, ad-hoc signed, installed to /Applications
 ```
 
 On first launch, **allow Local Network access** (essential) and notifications.

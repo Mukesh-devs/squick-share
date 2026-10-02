@@ -8,6 +8,8 @@
 #                                                    Developer ID + notarization (paid Apple Developer Program).
 #     Create the notary profile once with:
 #     xcrun notarytool store-credentials notary --apple-id you@example.com --team-id ABCDE12345
+#
+# Add --install to quit any running copy, replace /Applications/squick-share.app and open it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,6 +29,7 @@ else
 fi
 
 xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Release \
+  -destination 'generic/platform=macOS' \
   -derivedDataPath "$DERIVED" ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO "${SIGN_ARGS[@]}" \
   clean build | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
 
@@ -50,3 +53,14 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
 fi
 
 echo "Done: $OUT/squick-share.app (and squick-share.zip)"
+
+if [[ "${1:-}" == "--install" ]]; then
+  osascript -e 'quit app "squick-share"' 2>/dev/null || true
+  # Also stop copies started from other locations (e.g. this build folder), so only one advertises.
+  pkill -x squick-share 2>/dev/null || true
+  sleep 1
+  rm -rf /Applications/squick-share.app
+  ditto "$OUT/squick-share.app" /Applications/squick-share.app
+  open /Applications/squick-share.app
+  echo "Installed and opened /Applications/squick-share.app"
+fi

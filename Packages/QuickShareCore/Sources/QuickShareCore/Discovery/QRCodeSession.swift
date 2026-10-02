@@ -14,12 +14,7 @@ public struct QRCodeSession: Sendable {
     let nameKey: SymmetricKey
 
     public init() {
-        // The byte after the 2-byte version is the SEC1 prefix (0x02 even Y, 0x03 odd Y). NearDrop, the
-        // reference that works with Android, always writes 0x02. Picking a key whose Y is even makes
-        // both readings agree, so the phone reconstructs the right key either way (PROTOCOL_NOTES §9).
-        var key = P256.Signing.PrivateKey()
-        while key.publicKey.compressedRepresentation.first != 0x02 { key = P256.Signing.PrivateKey() }
-        self.init(signingKey: key)
+        self.init(signingKey: P256.Signing.PrivateKey())
     }
 
     init(signingKey: P256.Signing.PrivateKey) {

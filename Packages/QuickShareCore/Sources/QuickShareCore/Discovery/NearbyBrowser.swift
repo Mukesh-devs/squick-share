@@ -18,9 +18,6 @@ public struct DiscoveredDevice: Sendable, Identifiable, Hashable {
 
     public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
-    /// Whether the device advertises QR-code data (it scanned some QR code, maybe not ours).
-    public var hasQRCodeData: Bool { endpointInfo.qrCodeData != nil }
-
     /// If this device answered `session`'s QR code, its display name (decrypted if hidden).
     public func qrMatch(_ session: QRCodeSession) -> String? {
         guard let match = session.match(endpointInfo) else { return nil }

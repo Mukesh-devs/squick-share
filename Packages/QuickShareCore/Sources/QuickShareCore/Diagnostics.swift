@@ -43,9 +43,9 @@ public final class Diagnostics: @unchecked Sendable {
         sink?(Entry(date: Date(), level: level, category: category, message: text))
     }
 
-    func debug(_ category: String, _ message: @autoclosure () -> String) { log(.debug, category, message()) }
-    func info(_ category: String, _ message: @autoclosure () -> String) { log(.info, category, message()) }
-    func error(_ category: String, _ message: @autoclosure () -> String) { log(.error, category, message()) }
+    public func debug(_ category: String, _ message: @autoclosure () -> String) { log(.debug, category, message()) }
+    public func info(_ category: String, _ message: @autoclosure () -> String) { log(.info, category, message()) }
+    public func error(_ category: String, _ message: @autoclosure () -> String) { log(.error, category, message()) }
 
     /// A diagnostics instance that discards everything.
     public static let silent = Diagnostics()

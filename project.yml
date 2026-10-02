@@ -1,0 +1,120 @@
+# XcodeGen spec for squick-share. Regenerate the project with: xcodegen generate
+# The generated SquickShare.xcodeproj is committed, so XcodeGen is only needed after editing this file.
+name: SquickShare
+options:
+  bundleIdPrefix: tech.mukesh
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+packages:
+  QuickShareCore:
+    path: Packages/QuickShareCore
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: targeted
+    # Ad-hoc signing ("Sign to Run Locally"). For Developer ID, set DEVELOPMENT_TEAM and
+    # CODE_SIGN_IDENTITY = "Developer ID Application" (see README).
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: YES
+    DEAD_CODE_STRIPPING: YES
+  configs:
+    Release:
+      ONLY_ACTIVE_ARCH: NO
+      ARCHS: "$(ARCHS_STANDARD)"
+
+targets:
+  SquickShare:
+    type: application
+    platform: macOS
+    sources:
+      - path: SquickShare
+    dependencies:
+      - package: QuickShareCore
+        product: QuickShareCore
+      - target: ShareExtension
+        embed: true
+        codeSign: true
+    info:
+      path: SquickShare/Info.plist
+      properties:
+        CFBundleDisplayName: squick-share
+        CFBundleName: squick-share
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSApplicationCategoryType: public.app-category.utilities
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        LSUIElement: true
+        NSHumanReadableCopyright: ""
+        NSLocalNetworkUsageDescription: squick-share uses the local network to find nearby Android, Windows and Linux devices and to send and receive files with Quick Share.
+        NSBonjourServices:
+          - _FC9F5ED42C8A._tcp
+        CFBundleURLTypes:
+          - CFBundleURLName: squick-share send
+            CFBundleURLSchemes: [squickshare]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Any File
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: None
+            LSItemContentTypes: [public.item, public.folder]
+    entitlements:
+      path: SquickShare/SquickShare.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.network.server: true
+        com.apple.security.files.user-selected.read-write: true
+        com.apple.security.files.downloads.read-write: true
+        com.apple.security.files.bookmarks.app-scope: true
+    settings:
+      base:
+        PRODUCT_NAME: squick-share
+        PRODUCT_MODULE_NAME: SquickShare
+        PRODUCT_BUNDLE_IDENTIFIER: tech.mukesh.squick-share
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+
+  ShareExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: ShareExtension
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: squick-share
+        CFBundleName: squick-share
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).ShareViewController"
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsFileWithMaxCount: 500
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsImageWithMaxCount: 100
+              NSExtensionActivationSupportsMovieWithMaxCount: 100
+    entitlements:
+      path: ShareExtension/ShareExtension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-only: true
+    settings:
+      base:
+        PRODUCT_NAME: ShareExtension
+        PRODUCT_MODULE_NAME: ShareExtension
+        PRODUCT_BUNDLE_IDENTIFIER: tech.mukesh.squick-share.ShareExtension
+        GENERATE_INFOPLIST_FILE: NO

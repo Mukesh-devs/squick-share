@@ -34,12 +34,25 @@ public struct FileOffer: Sendable, Hashable {
     public let size: Int64
     public let mimeType: String
     public let parentFolder: String?
+
+    public init(name: String, size: Int64, mimeType: String, parentFolder: String?) {
+        self.name = name
+        self.size = size
+        self.mimeType = mimeType
+        self.parentFolder = parentFolder
+    }
 }
 
 public struct TextOffer: Sendable, Hashable {
     public let title: String
     public let kind: TextKind
     public let size: Int64
+
+    public init(title: String, kind: TextKind, size: Int64) {
+        self.title = title
+        self.kind = kind
+        self.size = size
+    }
 }
 
 /// An incoming transfer waiting for the user to accept or decline.
@@ -51,6 +64,14 @@ public struct IncomingTransferRequest: Sendable, Identifiable {
     public let texts: [TextOffer]
 
     public var totalBytes: Int64 { files.reduce(0) { $0 + $1.size } }
+
+    public init(id: UUID, device: RemoteDevice, pin: String, files: [FileOffer], texts: [TextOffer]) {
+        self.id = id
+        self.device = device
+        self.pin = pin
+        self.files = files
+        self.texts = texts
+    }
 }
 
 /// Something to send.

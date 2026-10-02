@@ -467,7 +467,9 @@ final class AppModel: ObservableObject {
 
     func showQRCode() {
         qrSession = QRCodeSession()
-        diagnostics.info("app", "showing QR code; waiting for a phone to answer it")
+        loggedQRMismatches = []
+        diagnostics.info("app", "showing QR code (key prefix 0x02); waiting for a phone to advertise it over mDNS. "
+            + "Visible now: \(nearbyDevices.map { "\($0.endpointID)\($0.hasQRCodeData ? "/qr" : "")" }.joined(separator: ", "))")
         startBrowser()
         checkQRMatch()
     }
@@ -476,8 +478,15 @@ final class AppModel: ObservableObject {
         qrSession = nil
     }
 
+    private var loggedQRMismatches: Set<String> = []
+
     private func checkQRMatch() {
         guard let qrSession, !pendingSendItems.isEmpty else { return }
+        for device in nearbyDevices where device.hasQRCodeData && device.qrMatch(qrSession) == nil
+            && !loggedQRMismatches.contains(device.id) {
+            loggedQRMismatches.insert(device.id)
+            diagnostics.info("app", "endpoint \(device.endpointID) advertises QR data that does not match this QR code")
+        }
         if let device = nearbyDevices.first(where: { $0.qrMatch(qrSession) != nil }) {
             diagnostics.info("app", "QR code answered by endpoint \(device.endpointID)")
             send(to: device, qr: qrSession)

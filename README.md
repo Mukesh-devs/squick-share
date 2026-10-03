@@ -207,7 +207,7 @@ Bundle ID: `tech.mukesh.squick-share` (set in `project.yml`).
 
 ### Releases and documentation (GitHub Actions + Pages)
 
-- **Releases:** bump `MARKETING_VERSION` in `project.yml`, run `xcodegen generate`, commit, then `git tag v1.0.1 && git push origin v1.0.1`. The [release workflow](.github/workflows/release.yml) runs the tests and attaches `squick-share-<version>-{universal,arm64,x86_64}.{dmg,zip}` to a GitHub Release, with a link to the documentation site.
+- **Releases:** bump `MARKETING_VERSION` in `project.yml`, run `xcodegen generate`, commit, then `git tag v1.0.2 && git push origin v1.0.2`. The [release workflow](.github/workflows/release.yml) runs the tests and attaches `squick-share-<version>-{universal,arm64,x86_64}.{dmg,zip}` to a GitHub Release, with a link to the documentation site.
 - **Documentation site:** [`docs/index.html`](docs/index.html), served by GitHub Pages (Settings › Pages › Deploy from a branch › `main`, folder `/docs`).
 - **Screenshots:** `./scripts/make-screenshots.sh` re-renders every image in `docs/images/` from the real UI with neutral sample data.
 

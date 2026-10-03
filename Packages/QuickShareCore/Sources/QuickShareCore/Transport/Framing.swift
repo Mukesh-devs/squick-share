@@ -61,14 +61,23 @@ func withTimeout<T: Sendable>(
     onTimeout: @escaping @Sendable () -> Void = {},
     _ operation: @escaping @Sendable () async throws -> T
 ) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
+    let fired = OnceFlag()
+    return try await withThrowingTaskGroup(of: T.self) { group in
         group.addTask { try await operation() }
         group.addTask {
             try await Task.sleep(nanoseconds: UInt64(max(seconds, 0) * 1_000_000_000))
+            // Record the timeout before onTimeout closes the stream: the blocked operation then fails
+            // with "closed", and that error can reach us before this task's own error does.
+            _ = fired.claim()
             onTimeout()
             throw TransportError.timedOut(stage)
         }
         defer { group.cancelAll() }
-        return try await group.next()!
+        do {
+            return try await group.next()!
+        } catch {
+            if fired.isClaimed { throw TransportError.timedOut(stage) }
+            throw error
+        }
     }
 }

@@ -133,6 +133,12 @@ final class OnceFlag: @unchecked Sendable {
         claimed = true
         return true
     }
+
+    var isClaimed: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return claimed
+    }
 }
 
 /// In-memory, connected pair of byte streams (for tests and fuzzing).

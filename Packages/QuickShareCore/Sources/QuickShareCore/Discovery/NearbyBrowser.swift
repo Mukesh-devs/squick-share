@@ -204,3 +204,16 @@ public final class NearbyBrowser: @unchecked Sendable {
         updateHandler(devices)
     }
 }
+
+#if DEBUG
+extension DiscoveredDevice {
+    /// A fake device for UI previews and screenshots (debug builds only).
+    public static func preview(name: String, type: DeviceType) -> DiscoveredDevice {
+        let endpointID = ServiceName.randomEndpointID()
+        return DiscoveredDevice(
+            id: "preview-\(endpointID)", endpointID: endpointID, name: name, type: type,
+            endpoint: SendableEndpoint(value: .hostPort(host: "127.0.0.1", port: 9)),
+            endpointInfo: EndpointInfo(name: name, deviceType: type))
+    }
+}
+#endif

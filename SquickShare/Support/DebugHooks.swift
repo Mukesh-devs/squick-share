@@ -64,6 +64,11 @@ extension AppModel {
         hideQRCode()
         render(SendPanel(showsClose: true).environmentObject(self).frame(width: 332).padding(14), width: 360, "send-list", directory, .aqua)
         render(MenuBarIconGallery(), width: 560, "menubar-icons", directory, .aqua)
+        debugLoadIdleState()
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            render(PopoverView().environmentObject(self).environmentObject(settings), width: 360,
+                   "popover-idle-\(appearance == .aqua ? "light" : "dark")", directory, appearance)
+        }
         diagnostics.info("debug", "snapshots written")
     }
 

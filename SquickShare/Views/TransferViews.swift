@@ -178,7 +178,7 @@ struct TransferRow: View {
                     .buttonStyle(.link).font(.caption)
                     .accessibilityHint("Cancels because the other device shows a different PIN")
             case .transferring:
-                ProgressView(value: transfer.fraction)
+                TransferProgressBar(fraction: transfer.fraction)
                     .accessibilityLabel("Progress")
                     .accessibilityValue("\(Int(transfer.fraction * 100)) percent")
                 HStack {
@@ -275,5 +275,23 @@ struct ReceivedTextView: View {
         }
         .padding(16)
         .frame(width: 380)
+    }
+}
+
+/// A slim progress bar drawn in SwiftUI (matches the menu bar ring and renders in snapshots).
+struct TransferProgressBar: View {
+    let fraction: Double
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.secondary.opacity(0.2))
+                Capsule().fill(Color.accentColor)
+                    .frame(width: max(6, geometry.size.width * min(max(fraction, 0), 1)))
+            }
+        }
+        .frame(height: 6)
+        .animation(.linear(duration: 0.2), value: fraction)
+        .accessibilityElement()
     }
 }

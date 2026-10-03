@@ -586,8 +586,17 @@ final class AppModel: ObservableObject {
             RecentTransfer(id: UUID(), date: Date().addingTimeInterval(-4000), direction: .incoming, deviceName: "Redmi Note 13",
                            itemNames: [], fileURLs: [], text: "https://example.com", succeeded: true, message: nil),
         ]
-        notice = "1 empty file was skipped (Quick Share can't send empty files)."
         pendingSendItems = [.text("Hello from the Mac")]
+        nearbyDevices = [.preview(name: "Pixel 9", type: .phone), .preview(name: "Galaxy Tab S9", type: .tablet),
+                         .preview(name: "Office PC", type: .laptop)]
+    }
+
+    /// Nothing in progress: just visibility, the drop zone and recent transfers.
+    func debugLoadIdleState() {
+        pendingRequests = []
+        transfers = []
+        pendingSendItems = []
+        notice = nil
     }
     #endif
 

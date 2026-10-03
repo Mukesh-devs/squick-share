@@ -22,9 +22,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        # The project needs Xcode 16 or later. Pick the newest non-beta Xcode on the runner.
+        # Pinned to the same Xcode as local development (26.0.1, build 17A400), so release builds
+        # behave exactly like local ones. macOS enables some behavior based on the SDK an app is built
+        # with: v1.0.0 was built with Xcode 26.3 (SDK 26.2) and crashed on receive, while local
+        # 26.0.1 builds did not. Change this together with your local Xcode, and test before tagging.
         run: |
-          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          XCODE=$(ls -d /Applications/Xcode_26.0.1*.app 2>/dev/null | head -1)
+          [ -n "$XCODE" ] || { echo "Xcode 26.0.1 is not installed on this runner"; ls -d /Applications/Xcode_*.app; exit 1; }
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
@@ -61,7 +65,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<'NOTES'
-          ## 📖 [Documentation and screenshots](__DOCS_URL__)
+          ## 📖 [Documentation](__DOCS_URL__)
 
           ### Download
 

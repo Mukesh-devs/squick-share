@@ -16,9 +16,22 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
             return
         }
         let controller = NSHostingController(rootView: content())
-        let window = NSWindow(contentViewController: controller)
+        // Size the window once from its content instead of letting SwiftUI keep resizing it.
+        // Automatic resizing can loop on macOS 26: each resize changes the window's corner safe area,
+        // which re-lays out the content, which resizes the window again, until AppKit throws
+        // ("more Update Constraints in Window passes than there are views") and the app quits.
+        controller.sizingOptions = []
+        var size = controller.view.fittingSize
+        if size.width < 1 || size.height < 1 { size = NSSize(width: 400, height: 300) }
+        let style: NSWindow.StyleMask = resizable ? [.titled, .closable, .resizable] : [.titled, .closable]
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style,
+                              backing: .buffered, defer: false)
+        window.contentViewController = controller
+        window.setContentSize(size)
+        if resizable {
+            window.contentMinSize = NSSize(width: min(size.width, 320), height: min(size.height, 160))
+        }
         window.title = title
-        window.styleMask = resizable ? [.titled, .closable, .resizable] : [.titled, .closable]
         window.isReleasedWhenClosed = false
         window.level = floating ? .floating : .normal
         window.identifier = NSUserInterfaceItemIdentifier(id)
@@ -52,10 +65,14 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
     }
 
     func showSend(model: AppModel) {
-        show(id: "send", title: "Send with squick-share") {
-            SendPanel(showsClose: false).environmentObject(model)
-                .frame(width: 380)
-                .padding(16)
+        // The device list grows while the window is open, so the window has a fixed size and scrolls.
+        show(id: "send", title: "Send with squick-share", resizable: true) {
+            ScrollView {
+                SendPanel(showsClose: false).environmentObject(model)
+                    .frame(width: 380)
+                    .padding(16)
+            }
+            .frame(minWidth: 412, idealWidth: 412, minHeight: 300, idealHeight: 460)
         }
     }
 

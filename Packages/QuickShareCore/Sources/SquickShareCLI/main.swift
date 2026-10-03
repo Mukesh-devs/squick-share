@@ -13,6 +13,7 @@ let usage = """
 usage:
   squick-share-cli receive [--name NAME] [--dir DIR] [--auto-accept] [--verbose] [--info-version 0|1]
   squick-share-cli send [--to NAME] [--qr] [--verbose] [--text TEXT] [FILE...]
+  squick-share-cli send --host HOST --port PORT [--verbose] [--text TEXT] [FILE...]   (no discovery)
   squick-share-cli browse [--verbose]
 """
 
@@ -24,6 +25,8 @@ struct Arguments {
     var verbose = false
     var infoVersion: UInt8 = 0
     var target: String?
+    var host: String?
+    var port: UInt16?
     var qr = false
     var texts: [String] = []
     var files: [URL] = []
@@ -39,6 +42,8 @@ struct Arguments {
             case "--verbose", "-v": verbose = true
             case "--info-version": infoVersion = UInt8(iterator.next() ?? "0") ?? 0
             case "--to": target = iterator.next()
+            case "--host": host = iterator.next()
+            case "--port": port = UInt16(iterator.next() ?? "")
             case "--qr": qr = true
             case "--text": if let text = iterator.next() { texts.append(text) }
             default: files.append(URL(fileURLWithPath: arg))
@@ -187,6 +192,14 @@ func send() async {
     var items = SendItems.expand(arguments.files)
     items += arguments.texts.map { SendItem.text($0) }
     guard !items.isEmpty else { return say(usage) }
+    if let host = arguments.host, let port = arguments.port {
+        say("Sending to \(host):\(port)…")
+        await runSend { handler in
+            QuickShareSender(identity: identity, diagnostics: diagnostics)
+                .send(items, host: host, port: port, eventHandler: handler)
+        }
+        return
+    }
     let qr = arguments.qr ? QRCodeSession() : nil
     if let qr {
         say("Scan this QR code with the phone's camera (or Quick Share → Receive → scan):")
@@ -211,8 +224,15 @@ func send() async {
     guard let target else { return say("No matching device found.") }
     say("Sending to \"\(target.qrMatch(qr ?? QRCodeSession()) ?? target.name ?? "device")\"…")
 
+    await runSend { handler in
+        QuickShareSender(identity: identity, diagnostics: diagnostics).send(items, to: target, qrSession: qr, eventHandler: handler)
+    }
+}
+
+/// Starts a send with `start` and waits until it completes or fails, printing progress.
+func runSend(_ start: (@escaping @Sendable (TransferEvent) -> Void) -> OutgoingTransfer) async {
     let done = DispatchSemaphore(value: 0)
-    QuickShareSender(identity: identity, diagnostics: diagnostics).send(items, to: target, qrSession: qr) { event in
+    _ = start { event in
         switch event {
         case .awaitingAcceptance(_, _, let pin): say("PIN \(pin). Waiting for the phone to accept…")
         case .progress(_, let bytes, let total):

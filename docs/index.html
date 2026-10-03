@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>squick-share — Quick Share for your Mac</title>
+<meta name="description" content="squick-share is a free, native macOS menu bar app that sends and receives files, folders and links with Android phones using Quick Share. No cable, no cloud, no account.">
+<!-- Link previews (WhatsApp, Slack, X, LinkedIn…). These need full addresses, not relative paths.
+     Regenerate the image with: swift scripts/make-social-preview.swift -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="squick-share">
+<meta property="og:title" content="squick-share — Quick Share for your Mac">
+<meta property="og:description" content="AirDrop-style sharing between your Mac and Android phones. Free, private, encrypted, native.">
+<meta property="og:url" content="https://mukesh-devs.github.io/squick-share/">
+<meta property="og:image" content="https://mukesh-devs.github.io/squick-share/images/social-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="squick-share: Quick Share for your Mac, with screenshots of the menu bar window and an incoming transfer">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="squick-share — Quick Share for your Mac">
+<meta name="twitter:description" content="AirDrop-style sharing between your Mac and Android phones. Free, private, encrypted, native.">
+<meta name="twitter:image" content="https://mukesh-devs.github.io/squick-share/images/social-preview.png">
+<link rel="icon" type="image/png" href="images/app-icon.png">
+<style>
+  :root {
+    --bg: #fbfbfd;
+    --bg-alt: #f2f2f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --line: #e3e3e8;
+    --accent: #2479e6;
+    --accent-2: #19c3c9;
+    --ok: #1f9d55;
+    --warn: #c76b00;
+    --code-bg: #f2f2f7;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1012;
+      --bg-alt: #17181b;
+      --card: #1c1d21;
+      --text: #f5f5f7;
+      --muted: #a1a1a6;
+      --line: #2c2d31;
+      --accent: #5aa2ff;
+      --accent-2: #3fd6db;
+      --ok: #4ad07f;
+      --warn: #ffb04a;
+      --code-bg: #232428;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  img { max-width: 100%; height: auto; }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 5px; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 10px; overflow-x: auto; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  /* Navigation */
+  nav {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: saturate(180%) blur(16px); -webkit-backdrop-filter: saturate(180%) blur(16px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); }
+  nav .brand img { width: 28px; height: 28px; }
+  nav .links { display: flex; gap: 18px; margin-left: auto; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  nav .links a { color: var(--muted); font-size: 14px; }
+  nav .links a:hover { color: var(--text); text-decoration: none; }
+  @media (max-width: 820px) { nav .links .opt { display: none; } }
+
+  /* Hero */
+  .hero { text-align: center; padding: 72px 0 40px; }
+  .hero .icon { width: 128px; height: 128px; filter: drop-shadow(0 12px 24px rgba(36, 121, 230, 0.35)); }
+  .hero h1 { font-size: clamp(40px, 7vw, 68px); line-height: 1.05; margin: 18px 0 10px; letter-spacing: -0.02em; }
+  .hero h1 span {
+    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.lead { font-size: clamp(18px, 2.4vw, 22px); color: var(--muted); max-width: 720px; margin: 0 auto 28px; }
+  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 999px;
+    font-weight: 600; font-size: 16px; border: 1px solid var(--line); color: var(--text); background: var(--card);
+  }
+  .btn:hover { text-decoration: none; border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .hero .note { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  .hero-shots { display: flex; gap: 22px; justify-content: center; align-items: flex-start; flex-wrap: wrap; margin-top: 44px; }
+  .hero-shots img { border-radius: 14px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+  .hero-shots .a { width: 300px; }
+  .hero-shots .b { width: 330px; margin-top: 30px; }
+  .hero-shots .c { width: 300px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 30px 0 10px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; text-align: center; }
+  .stat b { display: block; font-size: 28px; letter-spacing: -0.01em; }
+  .stat span { color: var(--muted); font-size: 14px; }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Sections */
+  section { padding: 64px 0; }
+  section.alt { background: var(--bg-alt); }
+  h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.015em; margin: 0 0 8px; line-height: 1.15; }
+  h3 { font-size: 20px; margin: 0 0 6px; }
+  .kicker { color: var(--accent); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .sub { color: var(--muted); font-size: 18px; max-width: 760px; margin: 0 0 32px; }
+
+  .grid { display: grid; gap: 16px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 900px) { .g3 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .g3, .g2 { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .card .emoji { font-size: 26px; line-height: 1; margin-bottom: 10px; }
+  .card p { margin: 0; color: var(--muted); }
+
+  /* Screenshot tour */
+  .shot { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: center; padding: 34px 0; border-top: 1px solid var(--line); }
+  .shot:first-of-type { border-top: 0; }
+  .shot.flip .media { order: 2; }
+  .shot .media { text-align: center; }
+  .shot .media img { border-radius: 14px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+  .shot .media .pair { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .shot ul { color: var(--muted); padding-left: 20px; margin: 10px 0 0; }
+  .shot li { margin: 4px 0; }
+  @media (max-width: 820px) { .shot { grid-template-columns: 1fr; gap: 20px; } .shot.flip .media { order: 0; } }
+  .icons-strip { margin-top: 18px; border-radius: 14px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg-alt); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+
+  /* Steps */
+  .steps { counter-reset: step; display: grid; gap: 14px; }
+  .step { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 18px 64px; }
+  .step::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 18px; top: 18px; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center;
+  }
+  .step h3 { margin-bottom: 4px; }
+  .step p { margin: 6px 0 0; color: var(--muted); }
+  .option { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--bg-alt); }
+  .option b { color: var(--text); }
+
+  /* Protocol flow */
+  .flow { display: grid; gap: 10px; }
+  .flow .row { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 12px; }
+  .flow .who { font-weight: 700; text-align: center; padding: 8px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); font-size: 14px; }
+  .flow .msg { position: relative; text-align: center; font-size: 14px; padding: 8px 12px; border-radius: 10px; }
+  .flow .msg.plain { background: var(--card); border: 1px dashed var(--line); }
+  .flow .msg.enc { background: color-mix(in srgb, var(--ok) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--line)); }
+  .flow .msg small { display: block; color: var(--muted); }
+  .flow .arrow-r::after { content: " →"; font-weight: 700; color: var(--accent); }
+  .flow .arrow-l::before { content: "← "; font-weight: 700; color: var(--accent); }
+  .flow .note { text-align: center; color: var(--muted); font-size: 14px; padding: 4px 0; }
+  @media (max-width: 620px) { .flow .row { grid-template-columns: 1fr; } .flow .who { display: none; } }
+
+  .callout { border-left: 4px solid var(--accent); background: var(--card); padding: 14px 18px; border-radius: 10px; color: var(--muted); }
+  .callout b { color: var(--text); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .pill.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .pill.soon { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .pill.no { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin: 10px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details p, details ul, details pre { color: var(--muted); }
+
+  footer { padding: 40px 0 calc(40px + env(safe-area-inset-bottom, 0px)); color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; gap: 16px; justify-content: space-between; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="images/app-icon.png" alt="">squick-share</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#tour">Screenshots</a>
+      <a href="#install">Install</a>
+      <a href="#use" class="opt">How to use</a>
+      <a href="#how" class="opt">How it works</a>
+      <a href="#security" class="opt">Security</a>
+      <a href="#faq" class="opt">FAQ</a>
+      <a href="#developers" class="opt">Developers</a>
+      <a data-repo="" href="https://github.com/mukesh-devs/squick-share">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <img class="icon" src="images/app-icon.png" alt="squick-share app icon">
+    <h1>Quick Share<br><span>for your Mac.</span></h1>
+    <p class="lead">Send photos, videos, files, folders and links between your Mac and Android phones, using the Quick Share button that's already on every Android device. No cable. No cloud. No account.</p>
+    <div class="buttons">
+      <a class="btn primary" data-repo="releases/latest" href="https://github.com/mukesh-devs/squick-share/releases/latest">⬇︎ Download for Mac</a>
+      <a class="btn" data-repo="" href="https://github.com/mukesh-devs/squick-share">View on GitHub</a>
+    </div>
+    <p class="note">Free and open source (MIT) · macOS 13 Ventura or later · Apple Silicon &amp; Intel</p>
+    <div class="hero-shots">
+      <img class="a" src="images/popover-idle-light.png" alt="The squick-share menu bar window">
+      <img class="b" src="images/request-dark.png" alt="An incoming transfer with its PIN, in dark mode">
+      <img class="c" src="images/send-list.png" alt="Choosing a nearby device to send to">
+    </div>
+    <div class="stats">
+      <div class="stat"><b>~35–40 MB/s</b><span>on 5 GHz Wi-Fi</span></div>
+      <div class="stat"><b>1 GB ≈ 30 s</b><span>tested with a real phone</span></div>
+      <div class="stat"><b>0</b><span>accounts, servers or uploads</span></div>
+      <div class="stat"><b>77</b><span>automated tests</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="kicker">Features</div>
+    <h2>Everything you expect from AirDrop, for Android.</h2>
+    <p class="sub">Android has Quick Share. iPhone has AirDrop. The Mac had nothing that talks to Android, until squick-share.</p>
+    <div class="grid g3">
+      <div class="card"><div class="emoji">📥</div><h3>Receive from Android</h3><p>A prompt and a notification show who's sending, what, how big, and a 4-digit PIN to confirm it's really them.</p></div>
+      <div class="card"><div class="emoji">📤</div><h3>Send to Android</h3><p>Drag files, folders or text onto the menu bar window, choose files, or right-click in Finder › Share › squick-share.</p></div>
+      <div class="card"><div class="emoji">⚡</div><h3>Wi-Fi speed</h3><p>Files go straight over your local network. A 1 GB video arrives in about 30 seconds on 5 GHz Wi-Fi.</p></div>
+      <div class="card"><div class="emoji">📁</div><h3>Folders and batches</h3><p>Send whole folders with their structure, or dozens of files at once. Duplicate names never overwrite anything.</p></div>
+      <div class="card"><div class="emoji">🔗</div><h3>Links and text</h3><p>Shared links open in a small window with Open Link and Copy. Nothing ever opens automatically.</p></div>
+      <div class="card"><div class="emoji">📊</div><h3>Live progress</h3><p>Speed, time left and cancel for every transfer, plus a progress ring right in the menu bar.</p></div>
+      <div class="card"><div class="emoji">🔒</div><h3>Private and encrypted</h3><p>End-to-end encrypted, device to device. No servers, no accounts, no analytics.</p></div>
+      <div class="card"><div class="emoji">✅</div><h3>Trusted devices</h3><p>Optionally auto-accept from your own phone after you approve it once.</p></div>
+      <div class="card"><div class="emoji">🍏</div><h3>A real Mac app</h3><p>Native Swift and SwiftUI, light and dark mode, VoiceOver labels, launch at login, sandboxed.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="tour">
+  <div class="wrap">
+    <div class="kicker">Screenshots</div>
+    <h2>A tour of the app</h2>
+    <p class="sub">squick-share lives in your menu bar. Every screen below is rendered from the real app.</p>
+
+    <div class="shot">
+      <div class="media"><div class="pair">
+        <img src="images/popover-idle-light.png" width="300" alt="Menu bar window, light mode">
+        <img src="images/popover-idle-dark.png" width="300" alt="Menu bar window, dark mode">
+      </div></div>
+      <div>
+        <h3>The menu bar window</h3>
+        <p>Click the antenna icon in the menu bar to open it.</p>
+        <ul>
+          <li>The status line shows how other devices see you ("Visible as MacBook Pro").</li>
+          <li>Drop files, folders or text in the dashed area, or use <b>Choose Files…</b> and <b>Send Text…</b>.</li>
+          <li><b>Recent</b> lists finished transfers, with a magnifier to show the file in Finder.</li>
+          <li>The <b>eye</b> menu switches visibility and has <b>Announce Again</b>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="shot flip">
+      <div class="media"><img src="images/popover-light.png" width="330" alt="Requests and active transfers"></div>
+      <div>
+        <h3>Requests and live transfers</h3>
+        <p>Anything that needs you comes first.</p>
+        <ul>
+          <li><b>Requests:</b> accept or decline right from the window, with the PIN shown.</li>
+          <li><b>Active:</b> each transfer shows a progress bar, size, speed and time left, with <b>Cancel</b>.</li>
+          <li>While sending, the PIN is shown large so you can compare it with the phone, plus a <b>PIN doesn't match</b> button.</li>
+          <li>Errors are explained in plain words, like "The other device declined the transfer."</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="media"><div class="pair">
+        <img src="images/request-light.png" width="330" alt="Incoming transfer prompt, light mode">
+        <img src="images/request-dark.png" width="330" alt="Incoming transfer prompt, dark mode">
+      </div></div>
+      <div>
+        <h3>Accept or decline</h3>
+        <p>When a phone sends you something, a floating window and a notification appear.</p>
+        <ul>
+          <li>Who's sending, every file with its type icon, size and folder, and the total.</li>
+          <li>A large <b>4-digit PIN</b> that should match the phone's screen.</li>
+          <li><b>Always accept from this device</b> adds it to your trusted devices.</li>
+          <li>Files are saved to your chosen folder and are never opened automatically.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="shot flip">
+      <div class="media"><div class="pair">
+        <img src="images/send-list.png" width="300" alt="Choosing a nearby device">
+        <img src="images/send-qr.png" width="300" alt="Send panel with QR code">
+      </div></div>
+      <div>
+        <h3>Sending to a phone</h3>
+        <p>After you drop something, nearby devices appear automatically. Click one to send.</p>
+        <ul>
+          <li>Phones, tablets and computers each get their own icon.</li>
+          <li><b>Phone not listed?</b> explains how to make an Android phone visible (Files › Quick Share › Receive).</li>
+          <li>The QR-code option is shown on the right. <span class="pill no">Not working yet</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="media"><img src="images/text.png" width="340" alt="Received text window"></div>
+      <div>
+        <h3>Received links and text</h3>
+        <p>Links and text from your phone open in a small window with <b>Copy</b>, and <b>Open Link</b> for web addresses. Nothing opens by itself.</p>
+      </div>
+    </div>
+
+    <div class="shot flip">
+      <div class="media"><div class="pair">
+        <img src="images/settings-general.png" width="380" alt="General settings">
+      </div></div>
+      <div>
+        <h3>Settings</h3>
+        <ul>
+          <li><b>Device name:</b> what phones see.</li>
+          <li><b>Visibility:</b> Everyone, Hidden, or Visible for 10 minutes.</li>
+          <li><b>Save files to:</b> Downloads or any folder you choose.</li>
+          <li><b>Launch at login</b>, <b>notifications</b>, and limiting to <b>Wi-Fi or Ethernet</b>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="media"><div class="pair">
+        <img src="images/settings-trusted.png" width="380" alt="Trusted devices settings">
+        <img src="images/settings-diagnostics.png" width="380" alt="Diagnostics settings">
+      </div></div>
+      <div>
+        <h3>Trusted devices and diagnostics</h3>
+        <ul>
+          <li><b>Trusted devices:</b> turn on auto-accept and manage the list.</li>
+          <li><b>Diagnostics:</b> verbose protocol logging and <b>Copy Diagnostic Log</b> for bug reports. The log never contains file contents, file names, paths or keys.</li>
+          <li><b>Advanced protocol options</b> let experts adjust compatibility details without rebuilding.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="shot flip">
+      <div class="media"><img class="icons-strip" src="images/menubar-icons.png" alt="Menu bar icon states"></div>
+      <div>
+        <h3>The menu bar icon</h3>
+        <p>See what's happening without opening anything:</p>
+        <ul>
+          <li><b>Antenna:</b> visible. <b>Antenna with a slash:</b> hidden.</li>
+          <li><b>Dot:</b> a request is waiting for you.</li>
+          <li><b>Ring with ↓ / ↑:</b> receiving or sending; the ring fills with progress.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="alt">
+  <div class="wrap">
+    <div class="kicker">Install</div>
+    <h2>Install in 2 steps</h2>
+    <p class="sub">Download one DMG from the <a data-repo="releases/latest" href="https://github.com/mukesh-devs/squick-share/releases/latest">latest release</a>.</p>
+    <div class="table-wrap" style="margin-bottom:22px">
+      <table>
+        <tr><th>File</th><th>For</th></tr>
+        <tr><td><code>squick-share-&lt;version&gt;-universal.dmg</code></td><td><b>Any Mac.</b> Pick this if you're not sure.</td></tr>
+        <tr><td><code>squick-share-&lt;version&gt;-arm64.dmg</code></td><td>Apple Silicon Macs (M1, M2, M3, M4 …). Smaller download.</td></tr>
+        <tr><td><code>squick-share-&lt;version&gt;-x86_64.dmg</code></td><td>Intel Macs. Smaller download.</td></tr>
+      </table>
+    </div>
+    <p style="color:var(--muted)">Not sure which Mac you have? Apple menu › <b>About This Mac</b>: "Chip: Apple M…" is Apple Silicon, "Processor: … Intel" is Intel. Each release also includes a <code>.zip</code> of the same app.</p>
+
+    <div class="steps">
+      <div class="step">
+        <h3>Copy the app to Applications</h3>
+        <p>Double-click the <code>.dmg</code>, then drag <b>squick-share</b> onto the <b>Applications</b> folder in the window that opens.</p>
+      </div>
+      <div class="step">
+        <h3>Allow it to open (first launch only)</h3>
+        <p>squick-share is free and ad-hoc signed rather than notarized by Apple, so macOS asks you to confirm it once. Pick one:</p>
+        <div class="option"><b>A. System Settings:</b> open squick-share and click <b>Done</b> on the warning. Go to <b>System Settings › Privacy &amp; Security</b>, scroll down, click <b>Open Anyway</b> and confirm. Open the app again and click <b>Open</b>. (On macOS 13 and 14: right-click the app › <b>Open</b> › <b>Open</b>.)</div>
+        <div class="option"><b>B. Terminal:</b> run one command:
+          <pre><code>xattr -dr com.apple.quarantine /Applications/squick-share.app &amp;&amp; open /Applications/squick-share.app</code></pre>
+        </div>
+      </div>
+    </div>
+    <p class="callout" style="margin-top:18px"><b>On first launch</b> an antenna icon appears in the menu bar (there's no Dock icon). When macOS asks to <b>find devices on your local network</b>, click <b>Allow</b>. This is required. Allow notifications too, for Accept/Decline alerts.</p>
+  </div>
+</section>
+
+<section id="use">
+  <div class="wrap">
+    <div class="kicker">How to use</div>
+    <h2>Share in seconds</h2>
+    <p class="sub">Both devices just need to be on the same Wi-Fi network.</p>
+    <div class="grid g2">
+      <div class="card">
+        <h3>📲 Phone → Mac</h3>
+        <ol>
+          <li>On the phone, share anything and choose <b>Quick Share</b>.</li>
+          <li>Tap your Mac's name.</li>
+          <li>Check the <b>4-digit PIN</b> matches, then click <b>Accept</b>.</li>
+          <li>Files land in <b>Downloads</b>; links open in a small window.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>💻 Mac → Phone</h3>
+        <ol>
+          <li>Drop files, folders or text onto the squick-share window, or right-click in Finder › <b>Share › squick-share</b>.</li>
+          <li>On the phone, open <b>Files › Quick Share › Receive</b> (or the Quick Share tile) and keep it open.</li>
+          <li>Click the phone when it appears, then accept on the phone.</li>
+        </ol>
+      </div>
+    </div>
+    <p class="callout" style="margin-top:18px"><b>Tip:</b> on Xiaomi/Redmi phones, use <b>Quick Share</b> (Google's), not "Xiaomi Share". If the phone doesn't see your Mac, choose <b>Announce Again</b> from the eye menu.</p>
+  </div>
+</section>
+
+<section id="how" class="alt">
+  <div class="wrap">
+    <div class="kicker">How it works</div>
+    <h2>A from-scratch Quick Share implementation in Swift</h2>
+    <p class="sub">squick-share speaks Google's Quick Share protocol over Wi-Fi. Here's a transfer from a phone, step by step.</p>
+    <div class="flow">
+      <div class="row"><div class="who">Phone</div><div class="msg plain arrow-l">Bonjour / mDNS announcement<small>"squick-share is here" (service _FC9F5ED42C8A._tcp)</small></div><div class="who">Mac</div></div>
+      <div class="row"><div class="who">Phone</div><div class="msg plain arrow-r">TCP connection + ConnectionRequest<small>the phone's name and type</small></div><div class="who">Mac</div></div>
+      <div class="row"><div class="who">Phone</div><div class="msg plain arrow-r">UKEY2 key exchange<small>P-256 elliptic-curve Diffie-Hellman with a commitment</small></div><div class="who">Mac</div></div>
+      <div class="note">🔢 Both devices derive the same 4-digit PIN from the shared secret</div>
+      <div class="note">🔒 From here on, every message is AES-256 encrypted and HMAC-SHA256 signed</div>
+      <div class="row"><div class="who">Phone</div><div class="msg enc arrow-r">Introduction<small>file names, sizes and types</small></div><div class="who">Mac</div></div>
+      <div class="row"><div class="who">Phone</div><div class="msg enc arrow-l">Accept<small>after you click Accept</small></div><div class="who">Mac</div></div>
+      <div class="row"><div class="who">Phone</div><div class="msg enc arrow-r">File data in 512 KB chunks<small>written straight to disk, then moved into place</small></div><div class="who">Mac</div></div>
+      <div class="row"><div class="who">Phone</div><div class="msg enc arrow-l">Done, disconnect<small>keep-alives flow both ways throughout</small></div><div class="who">Mac</div></div>
+    </div>
+
+    <h3 style="margin-top:36px">The layers</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Layer</th><th>What it does</th></tr>
+        <tr><td><b>Discovery</b></td><td>Advertises the Mac with Bonjour (mDNS) and finds phones the same way. Re-announces every 20 s so phones that reconnect to Wi-Fi still find it.</td></tr>
+        <tr><td><b>Handshake</b></td><td>UKEY2: P-256 ECDH with a commitment, producing the session keys and the PIN.</td></tr>
+        <tr><td><b>Secure channel</b></td><td>AES-256-CBC encryption plus HMAC-SHA256, checked before decrypting, with strict sequence numbers.</td></tr>
+        <tr><td><b>Transfer</b></td><td>Files stream in 512 KB chunks to a temporary file in your folder, then move into place atomically. Memory stays flat even for huge files.</td></tr>
+        <tr><td><b>App</b></td><td>SwiftUI menu bar app, notifications, settings, and a Finder/Safari share extension, all on top of a UI-free Swift package called <code>QuickShareCore</code>.</td></tr>
+      </table>
+    </div>
+
+    <h3 style="margin-top:36px">Tested and measured</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><td><b>Real device</b></td><td>Android phone with Google Quick Share, both directions, PIN verified</td></tr>
+        <tr><td><b>Speed</b></td><td>~35 MB/s phone → Mac, ~30 MB/s Mac → phone (5 GHz Wi-Fi)</td></tr>
+        <tr><td><b>Big files</b></td><td>1.05 GB video in 30 s; an 11-file, 440 MB batch in 14 s</td></tr>
+        <tr><td><b>Memory</b></td><td>A 128 MiB transfer adds about 1 MiB of memory</td></tr>
+        <tr><td><b>Automated tests</b></td><td>77, including crypto checked against an independent Python implementation, malformed-data fuzzing, and loopback transfers</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap">
+    <div class="kicker">Privacy &amp; security</div>
+    <h2>Your files never leave your network</h2>
+    <p class="sub">No servers, no accounts, no analytics. squick-share only talks to devices on your local network.</p>
+    <div class="grid g2">
+      <div class="card"><div class="emoji">🔐</div><h3>End-to-end encrypted</h3><p>Fresh keys for every transfer. The PIN on both screens confirms you're connected to the right device.</p></div>
+      <div class="card"><div class="emoji">🧹</div><h3>Safe file handling</h3><p>Incoming names are sanitized (no <code>../</code> tricks, hidden files or spoofed extensions). Files are written only inside your chosen folder and never opened automatically.</p></div>
+      <div class="card"><div class="emoji">🧱</div><h3>Sandboxed</h3><p>Runs in the macOS App Sandbox with the Hardened Runtime. It only gets network access and your chosen folders.</p></div>
+      <div class="card"><div class="emoji">🛡</div><h3>Defensive by design</h3><p>Strict message ordering, size limits, and timeouts at every stage, plus fuzz tests that feed it malformed data.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="compat" class="alt">
+  <div class="wrap">
+    <div class="kicker">Compatibility</div>
+    <h2>What it works with</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Device</th><th>Status</th></tr>
+        <tr><td>Android with Google Quick Share</td><td><span class="pill ok">Tested</span> both directions</td></tr>
+        <tr><td>Pixel, Samsung</td><td><span class="pill soon">Expected</span> same protocol, not yet tested</td></tr>
+        <tr><td>Quick Share for Windows, RQuickShare (Linux)</td><td><span class="pill soon">Expected</span> not yet tested</td></tr>
+        <tr><td>QR-code pairing</td><td><span class="pill no">Not working yet</span></td></tr>
+      </table>
+    </div>
+    <p style="color:var(--muted);margin-top:14px"><b>Not supported:</b> Wi-Fi Direct and hotspot transfers (not available to normal Mac apps), internet relay, Google-account "Your devices / Contacts" visibility (use <b>Everyone</b>), and Bluetooth. Both devices must be on the same Wi-Fi network.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="kicker">FAQ</div>
+    <h2>Questions and troubleshooting</h2>
+    <details><summary>My phone doesn't show my Mac.</summary>
+      <ul>
+        <li>Make sure both are on the same Wi-Fi network, not a guest network, and no VPN is running.</li>
+        <li>Check the status line says <b>Visible as …</b>, then choose <b>Announce Again</b> from the eye menu.</li>
+        <li>If the window says <b>Local network permission is off</b>, click <b>Open System Settings</b> and turn squick-share on.</li>
+        <li>Some routers block the multicast traffic discovery uses. Quick test: connect the Mac to the phone's hotspot.</li>
+      </ul>
+    </details>
+    <details><summary>My Mac doesn't show my phone.</summary>
+      <p>Android phones only advertise themselves while they're ready to receive. Open <b>Files › Quick Share › Receive</b> (or the Quick Share tile in Quick Settings) and keep that screen open.</p>
+    </details>
+    <details><summary>Why does macOS warn me when I first open it?</summary>
+      <p>squick-share is free and ad-hoc signed rather than notarized through Apple's paid program. Follow <a href="#install">step 2</a> once and it opens normally afterwards.</p>
+    </details>
+    <details><summary>Does it work with iPhone?</summary>
+      <p>No. iPhones use AirDrop, which already works with your Mac. squick-share is for Android's Quick Share.</p>
+    </details>
+    <details><summary>Is it safe to accept files?</summary>
+      <p>Files are only saved, never opened, and only inside your chosen folder. Check the PIN matches the sender's screen, and decline anything you don't expect.</p>
+    </details>
+    <details><summary>Something failed. How do I report it?</summary>
+      <p>Open <b>Settings › Diagnostics</b>, turn on verbose logging, try again, click <b>Copy Diagnostic Log</b>, and paste it into an issue on <a data-repo="issues" href="https://github.com/mukesh-devs/squick-share/issues">GitHub</a>. The log never contains file contents, file names or keys.</p>
+    </details>
+  </div>
+</section>
+
+<section id="developers" class="alt">
+  <div class="wrap">
+    <div class="kicker">For developers</div>
+    <h2>Build it yourself</h2>
+    <p class="sub">Requires Xcode 16 or later. The protocol lives in a UI-free Swift package, <code>QuickShareCore</code>, with a small public API.</p>
+<pre><code>git clone https://github.com/mukesh-devs/squick-share.git && cd squick-share
+./scripts/build-release.sh --install   # universal build, installed to /Applications
+./scripts/build-release.sh --all       # universal, arm64 and x86_64 apps + zips
+./scripts/make-dmg.sh                  # squick-share-&lt;version&gt;-&lt;arch&gt;.dmg
+cd Packages/QuickShareCore && swift test   # 77 tests</code></pre>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Folder</th><th>Contents</th></tr>
+        <tr><td><code>SquickShare/</code></td><td>The SwiftUI menu bar app: views, settings, notifications</td></tr>
+        <tr><td><code>ShareExtension/</code></td><td>Finder and Safari share menu extension</td></tr>
+        <tr><td><code>Packages/QuickShareCore/</code></td><td>Protocol, crypto and networking (Swift 6), plus a command-line tool and the test suite</td></tr>
+        <tr><td><code>docs/</code></td><td>This site, protocol notes, compatibility matrix, and the device testing guide</td></tr>
+        <tr><td><code>scripts/</code></td><td>Release builds, DMG packaging, screenshots, protobuf generation, crypto test vectors</td></tr>
+        <tr><td><code>.github/workflows/</code></td><td>Release workflow: tests, builds all variants, publishes DMGs and zips</td></tr>
+      </table>
+    </div>
+    <p style="color:var(--muted);margin-top:14px">Releases: push a tag like <code>v1.0.1</code> and GitHub Actions publishes <code>squick-share-&lt;version&gt;-{universal,arm64,x86_64}.{dmg,zip}</code>. More in the <a data-repo="" href="https://github.com/mukesh-devs/squick-share">README</a>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 mukesh-devs · <a data-repo="blob/main/LICENSE" href="https://github.com/mukesh-devs/squick-share/blob/main/LICENSE">MIT License</a></div>
+  </div>
+</footer>
+
+<script>
+  // On GitHub Pages (https://<owner>.github.io/<repo>/), point every repository link at the actual repo,
+  // so the page stays correct whatever account or repository name hosts it.
+  (function () {
+    var host = location.hostname;
+    if (!/\.github\.io$/i.test(host)) return;
+    var owner = host.replace(/\.github\.io$/i, "");
+    var repo = location.pathname.split("/").filter(Boolean)[0];
+    if (!repo) return;
+    var base = "https://github.com/" + owner + "/" + repo;
+    document.querySelectorAll("[data-repo]").forEach(function (link) {
+      var path = link.getAttribute("data-repo");
+      link.href = path ? base + "/" + path : base;
+    });
+    var clone = document.querySelector("#developers pre code");
+    if (clone) clone.textContent = clone.textContent.replace("https://github.com/mukesh-devs/squick-share.git", base + ".git");
+  })();
+</script>
+</body>
+</html>

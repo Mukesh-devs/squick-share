@@ -5,3 +5,8 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 build/
+
+# Markdown: ignore everything except README
+*.md
+*.txt
+!README.md

@@ -1,0 +1,89 @@
+# Builds squick-share for Apple Silicon (arm64), Intel (x86_64) and both (universal), and packages
+# each as squick-share-<version>-<arch>.dmg and squick-share-<version>-<arch>.zip.
+#   - Push a tag like v1.0.0  -> tests, builds, and publishes a GitHub Release with all six files.
+#   - Run manually (Actions tab -> Release -> Run workflow) -> same build; files saved as a workflow artifact.
+# The app is ad-hoc signed; see README "Install" for opening it on another Mac.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create the Release
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        # The project needs Xcode 16 or later. Pick the newest non-beta Xcode on the runner.
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Test protocol core
+        working-directory: Packages/QuickShareCore
+        # The mDNS integration tests need a local network with multicast, which CI runners don't have.
+        run: swift test --skip DiscoveryIntegrationTests
+
+      - name: Build apps (universal, arm64, x86_64; ad-hoc signed) and zips
+        run: ./scripts/build-release.sh --all
+
+      - name: Make DMGs
+        run: ./scripts/make-dmg.sh
+
+      - name: List release files
+        run: ls -lh build/release/*.dmg build/release/*.zip
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: squick-share
+          path: |
+            build/release/*.dmg
+            build/release/*.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # GitHub Pages address of the documentation site (docs/index.html).
+          DOCS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cat > release-notes.md <<'NOTES'
+          ## 📖 [Documentation and screenshots](__DOCS_URL__)
+
+          ### Download
+
+          | File | For |
+          |---|---|
+          | `squick-share-__VERSION__-universal.dmg` | **Any Mac.** Pick this if you're not sure. |
+          | `squick-share-__VERSION__-arm64.dmg` | Apple Silicon Macs (M1, M2, M3, M4 …) |
+          | `squick-share-__VERSION__-x86_64.dmg` | Intel Macs |
+
+          The `.zip` files contain the same app, one per variant.
+
+          ### Install in 2 steps
+
+          1. Open the `.dmg` and drag **squick-share** onto **Applications**.
+          2. First launch only (the app is ad-hoc signed, not notarized): open it once, then go to **System Settings › Privacy & Security › Open Anyway**. Or run:
+             ```sh
+             xattr -dr com.apple.quarantine /Applications/squick-share.app && open /Applications/squick-share.app
+             ```
+
+          When macOS asks to find devices on your local network, click **Allow**. Full guide: [documentation](__DOCS_URL__#install).
+          NOTES
+          sed -i '' -e "s|__DOCS_URL__|${DOCS_URL}|g" -e "s|__VERSION__|${VERSION}|g" release-notes.md
+          # The notes above come first; GitHub appends the generated "What's changed" list.
+          gh release create "$GITHUB_REF_NAME" build/release/*.dmg build/release/*.zip \
+            --title "squick-share $GITHUB_REF_NAME" --notes-file release-notes.md --generate-notes

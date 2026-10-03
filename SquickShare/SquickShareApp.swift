@@ -49,6 +49,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
         // SQUICKSHARE_SNAPSHOT=1: render the UI to PNGs and quit, without starting the network.
+        // SQUICKSHARE_SETTINGS_TEST=1: open Settings, switch tabs repeatedly, then quit (hang check).
+        if ProcessInfo.processInfo.environment["SQUICKSHARE_SETTINGS_TEST"] != nil {
+            MainActor.assumeIsolated { model.runSettingsTabTest() }
+            return
+        }
         if ProcessInfo.processInfo.environment["SQUICKSHARE_SNAPSHOT"] != nil {
             MainActor.assumeIsolated { model.renderSnapshotsAndQuit() }
             return

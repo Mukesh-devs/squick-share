@@ -1,15 +1,37 @@
 import QuickShareCore
 import SwiftUI
 
+enum SettingsTab: Hashable, CaseIterable {
+    case general, trustedDevices, diagnostics
+}
+
 struct SettingsView: View {
+    @EnvironmentObject private var model: AppModel
+
+    // A segmented control instead of TabView: on macOS 26, SwiftUI's TabView could loop forever
+    // when switching back to the General tab, freezing the app.
     var body: some View {
-        TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            TrustedDevicesSettings().tabItem { Label("Trusted Devices", systemImage: "checkmark.shield") }
-            DiagnosticsSettings().tabItem { Label("Diagnostics", systemImage: "stethoscope") }
+        VStack(spacing: 0) {
+            Picker("Settings section", selection: $model.settingsTab) {
+                Label("General", systemImage: "gearshape").tag(SettingsTab.general)
+                Label("Trusted Devices", systemImage: "checkmark.shield").tag(SettingsTab.trustedDevices)
+                Label("Diagnostics", systemImage: "stethoscope").tag(SettingsTab.diagnostics)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .padding(.top, 14)
+            .padding(.bottom, 6)
+            Group {
+                switch model.settingsTab {
+                case .general: GeneralSettings()
+                case .trustedDevices: TrustedDevicesSettings()
+                case .diagnostics: DiagnosticsSettings()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(width: 500, height: 460)
-        .padding(.top, 8)
     }
 }
 
@@ -67,7 +89,11 @@ struct GeneralSettings: View {
             .help("Limit discovery and transfers to one kind of network interface")
         }
         .formStyle(.grouped)
-        .onAppear { nameDraft = settings.deviceName; settings.refreshLaunchAtLogin() }
+        .onAppear {
+            // Change state only when it differs, so appearing can't trigger another update (see refreshLaunchAtLogin).
+            if nameDraft != settings.deviceName { nameDraft = settings.deviceName }
+            settings.refreshLaunchAtLogin()
+        }
     }
 
     private func commitName() {

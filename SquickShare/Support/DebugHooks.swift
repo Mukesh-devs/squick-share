@@ -33,6 +33,23 @@ extension AppModel {
         }
     }
 
+    /// Opens Settings and cycles through the tabs; prints progress and quits when done.
+    /// If a tab switch hangs, the process never exits, which the caller detects with a timeout.
+    func runSettingsTabTest(step: Int = 0) {
+        let order: [SettingsTab] = [.general, .trustedDevices, .general, .diagnostics, .general]
+        if step == 0 { windows.showSettings(model: self) }
+        guard step < 40 else {
+            print("settings tab test: finished \(step) switches")
+            fflush(stdout)
+            NSApp.terminate(nil)
+            return
+        }
+        settingsTab = order[step % order.count]
+        print("settings tab test: switch \(step + 1) -> \(settingsTab)")
+        fflush(stdout)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { self.runSettingsTabTest(step: step + 1) }
+    }
+
     func renderSnapshotsAndQuit() {
         renderSnapshots()
         NSApp.terminate(nil)
@@ -55,6 +72,7 @@ extension AppModel {
             render(PopoverView().environmentObject(self).environmentObject(settings), width: 360, "popover-\(suffix)", directory, appearance)
             render(IncomingRequestView(request: request).environmentObject(self).frame(width: 380), width: 380, "request-\(suffix)", directory, appearance)
         }
+        render(SettingsView().environmentObject(self).environmentObject(settings), width: 500, "settings-window", directory, .aqua)
         render(GeneralSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 420), width: 500, "settings-general", directory, .aqua)
         render(DiagnosticsSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 420), width: 500, "settings-diagnostics", directory, .aqua)
         render(TrustedDevicesSettings().environmentObject(settings).frame(width: 500, height: 300), width: 500, "settings-trusted", directory, .aqua)

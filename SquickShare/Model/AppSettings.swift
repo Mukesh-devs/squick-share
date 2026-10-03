@@ -127,7 +127,10 @@ final class AppSettings: ObservableObject {
     // MARK: Launch at login
 
     func refreshLaunchAtLogin() {
-        launchAtLogin = SMAppService.mainApp.status == .enabled
+        // Only publish real changes. Settings calls this when its General tab appears; publishing an
+        // unchanged value made macOS 26's TabView rebuild the tab, which appeared again, forever.
+        let enabled = SMAppService.mainApp.status == .enabled
+        if enabled != launchAtLogin { launchAtLogin = enabled }
     }
 
     /// Returns an error message on failure.

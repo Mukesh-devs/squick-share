@@ -23,6 +23,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var nearbyDevices: [DiscoveredDevice] = []
     @Published private(set) var qrSession: QRCodeSession?
     @Published var notice: String?
+    /// The selected Settings tab (kept here so it survives closing and reopening the window).
+    @Published var settingsTab: SettingsTab = .general
     @Published private(set) var now = Date()
 
     private var receiver: QuickShareReceiver?

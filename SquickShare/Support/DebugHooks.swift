@@ -197,8 +197,15 @@ extension AppModel {
         window.appearance = NSAppearance(named: appearance)
         window.contentView = hosting
         hosting.layoutSubtreeIfNeeded()
-        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
-        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        // Always 2x (Retina), whatever screen this runs on: CI machines have 1x displays.
+        let scale: CGFloat = 2
+        let bounds = hosting.bounds
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(bounds.width * scale),
+                                         pixelsHigh: Int(bounds.height * scale), bitsPerSample: 8, samplesPerPixel: 4,
+                                         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                         bytesPerRow: 0, bitsPerPixel: 0) else { return }
+        rep.size = bounds.size
+        hosting.cacheDisplay(in: bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("\(name).png"))
     }
 }

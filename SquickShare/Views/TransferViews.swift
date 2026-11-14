@@ -38,8 +38,9 @@ struct IncomingRequestView: View {
                     .keyboardShortcut(inline ? nil : .cancelAction)
                     .accessibilityHint("Rejects this transfer")
                 Spacer()
+                // A standard button: the prominent style draws white-on-white in windows that aren't
+                // active, which is exactly where this prompt appears (it never takes focus).
                 Button("Accept") { model.accept(request, trust: trust) }
-                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(inline ? nil : .defaultAction)
                     .accessibilityHint("Saves to \(model.settings.downloadFolder.lastPathComponent)")
             }

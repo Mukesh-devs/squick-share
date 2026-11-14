@@ -116,6 +116,8 @@ struct DeviceAvatar: View {
                 Circle()
                     .stroke(Color.accentColor.opacity(0.2), lineWidth: 3)
                     .frame(width: 72, height: 72)
+            }
+            if let transfer, transfer.phase == .transferring {
                 Circle()
                     .trim(from: 0, to: max(0.02, transfer.fraction))
                     .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))

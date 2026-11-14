@@ -13,7 +13,7 @@ No cable. No cloud. No account. Straight over your Wi-Fi.
 ![Apple Silicon and Intel](https://img.shields.io/badge/Apple%20Silicon%20%26%20Intel-native-0A84FF)
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 ![License MIT](https://img.shields.io/badge/license-MIT-34C759)
-![Tests 77 passing](https://img.shields.io/badge/tests-77%20passing-34C759)
+![Tests 81 passing](https://img.shields.io/badge/tests-81%20passing-34C759)
 
 **[⬇︎ Download](../../releases/latest)** &nbsp;·&nbsp; **[📖 Documentation](https://mukesh-devs.github.io/squick-share/)** &nbsp;·&nbsp; **[How it works](#how-it-works)**
 
@@ -130,7 +130,7 @@ More help: [troubleshooting guide](docs/TESTING.md#if-the-mac-does-not-appear-on
 | **Speed** | ~35 MB/s phone → Mac, ~30 MB/s Mac → phone (5 GHz Wi-Fi) |
 | **Big files** | 1.05 GB video in 30 s; an 11-file, 440 MB batch in 14 s |
 | **Memory** | Streams to disk: a 128 MiB transfer adds about 1 MiB of memory |
-| **Automated tests** | 77, including crypto checked against an independent Python implementation, malformed-data fuzzing, and loopback transfers |
+| **Automated tests** | 81, including crypto checked against an independent Python implementation, malformed-data fuzzing, and loopback transfers |
 
 ## How it works
 
@@ -233,7 +233,7 @@ The public API of `QuickShareCore` is small (`QuickShareReceiver`, `QuickShareSe
 ### Development commands
 
 ```sh
-cd Packages/QuickShareCore && swift test           # 77 tests, about 25 s
+cd Packages/QuickShareCore && swift test           # 81 tests, about 30 s
 swift run squick-share-cli receive --verbose        # receive in Terminal
 xcodegen generate                                   # after editing project.yml (brew install xcodegen)
 ./scripts/generate-protos.sh                        # after changing .proto files (brew install protobuf swift-protobuf)

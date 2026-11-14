@@ -49,7 +49,9 @@ final class AppSettings: ObservableObject {
     private var scopedFolder: URL?
 
     init() {
-        let defaultName = Host.current().localizedName ?? "Mac"
+        // The computer name can be longer than the 50 characters a name may have.
+        let computerName = (Host.current().localizedName ?? "Mac").trimmingCharacters(in: .whitespacesAndNewlines)
+        let defaultName = computerName.isEmpty ? "Mac" : String(computerName.prefix(50))
         deviceName = defaults.string(forKey: "deviceName").flatMap { Self.validateName($0) == nil ? $0 : nil } ?? defaultName
         let storedVisibility = Visibility(rawValue: defaults.string(forKey: "visibility") ?? "") ?? .everyone
         visibility = storedVisibility == .temporary ? .hidden : storedVisibility   // a timer never survives a relaunch

@@ -4,21 +4,54 @@ Rendered from the app with `./scripts/make-screenshots.sh --out docs/screenshots
 at 2x, with neutral sample data (device name "MacBook Pro", sample phones). Nothing here is used by the
 README or the documentation site yet; `docs/images/` still holds the old popover screenshots.
 
-## Main window
+The main window has a sidebar with four pages: **Send** (⌘1), **Receive** (⌘2), **History** (⌘3) and
+**Settings** (⌘,). The sidebar shows a badge when a request is waiting or a transfer is running, and the
+bottom of the sidebar shows whether this Mac can be found.
+
+## Send
 
 | Light | Dark |
 |---|---|
-| ![](window-light.png) | ![](window-dark.png) |
+| ![](window-send-light.png) | ![](window-send-dark.png) |
 
-**Busy:** a request waiting, sending with progress rings on the devices, PIN check, a declined send.
+**Busy:** a request waiting (strip at the top), an item to send, progress rings and PIN on the devices,
+a declined send, and the transfers in progress.
 
 | Light | Dark |
 |---|---|
-| ![](window-busy-light.png) | ![](window-busy-dark.png) |
+| ![](window-send-busy-light.png) | ![](window-send-busy-dark.png) |
 
 | Searching (no devices yet) | QR code (experimental) |
 |---|---|
 | ![](window-searching.png) | ![](window-qr.png) |
+
+## Receive
+
+| Light | Dark |
+|---|---|
+| ![](window-receive-light.png) | ![](window-receive-dark.png) |
+
+**Busy:** a request with its PIN, and a transfer coming in.
+
+| Light | Dark |
+|---|---|
+| ![](window-receive-busy-light.png) | ![](window-receive-busy-dark.png) |
+
+## History
+
+| Light | Dark |
+|---|---|
+| ![](window-history-light.png) | ![](window-history-dark.png) |
+
+## Settings
+
+| Light | Dark |
+|---|---|
+| ![](window-settings-light.png) | ![](window-settings-dark.png) |
+
+| General | Trusted Devices | Diagnostics |
+|---|---|---|
+| ![](settings-general.png) | ![](settings-trusted.png) | ![](settings-diagnostics.png) |
 
 ## Menu bar menu
 
@@ -31,19 +64,13 @@ render, with the standard items drawn alongside for reference.
 
 ![Menu bar icon states](menubar-icons.png)
 
-## Incoming request
+## Incoming request panel
 
-Shown inside the main window, or in a small panel when notifications are off.
+Shown only when notifications are off; it floats without taking keyboard focus.
 
 | Light | Dark |
 |---|---|
 | ![](request-light.png) | ![](request-dark.png) |
-
-## Settings
-
-| Window | General | Trusted Devices | Diagnostics |
-|---|---|---|---|
-| ![](settings-window.png) | ![](settings-general.png) | ![](settings-trusted.png) | ![](settings-diagnostics.png) |
 
 ## Received text
 

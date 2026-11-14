@@ -855,6 +855,7 @@ final class AppModel: ObservableObject {
         isMainWindowOpen = true
         receiverStatus = .advertising(port: 0)
         browserStatus = .browsing
+        if settings.useBluetooth { beaconStatus = .listening }
     }
 
     #endif

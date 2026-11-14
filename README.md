@@ -34,14 +34,15 @@ Android has Quick Share. iPhone has AirDrop. Your Mac has… nothing that talks 
 - 📱 **Works with the phone you already have.** Nothing to install on Android. Just tap **Share › Quick Share** and pick your Mac.
 - ⚡ **Fast.** Limited only by your Wi-Fi: about **35–40 MB/s** on a 5 GHz network. A 1 GB video arrives in about 30 seconds.
 - 🔒 **Private and encrypted.** Files go directly from device to device, encrypted end to end. Nothing is uploaded anywhere, and there's no account.
-- 🍏 **A real Mac app.** Native Swift and SwiftUI, a tiny menu bar footprint, light and dark mode, VoiceOver labels, Apple Silicon and Intel.
+- 🍏 **A real Mac app.** Native Swift and SwiftUI, an AirDrop-style window plus a small menu bar menu, light and dark mode, VoiceOver labels, Apple Silicon and Intel.
 
 ## Features
 
 | | |
 |---|---|
 | 📥 **Receive from Android** | Accept or decline with a prompt and a notification showing who's sending, what, how big, and a **4-digit PIN** to confirm it's really them. |
-| 📤 **Send to Android** | Drag files, folders or text onto the menu bar window, use **Choose Files…**, or right-click in Finder › **Share › squick-share**. |
+| 📤 **Send to Android** | Drop files, folders or text on a nearby device in the squick-share window, click a device to choose files, or right-click in Finder › **Share › squick-share**. |
+| 📡 **Found faster** | When a nearby phone opens Quick Share, squick-share notices over Bluetooth and announces the Mac right away (it only listens; nothing is sent over Bluetooth). |
 | 📁 **Folders and many files** | Send whole folders (structure preserved) or dozens of files in one go. |
 | 🔗 **Links and text** | Shared links open in a window with **Open Link** and **Copy**. Nothing opens by itself. |
 | 📊 **Live progress** | Speed, time left and cancel for every transfer, plus a **progress ring in the menu bar** so you can follow it without opening anything. |
@@ -77,7 +78,7 @@ squick-share is free and ad-hoc signed rather than notarized by Apple, so macOS 
   xattr -dr com.apple.quarantine /Applications/squick-share.app && open /Applications/squick-share.app
   ```
 
-> **On first launch** an antenna icon appears in the menu bar (there's no Dock icon). When macOS asks to **find devices on your local network**, click **Allow**. This is required. Allow notifications too, for Accept/Decline alerts.
+> **On first launch** the squick-share window opens and an antenna icon appears in the menu bar. When macOS asks to **find devices on your local network**, click **Allow**. This is required. Allow notifications too, for Accept/Decline alerts, and Bluetooth, so phones see your Mac sooner. Closing the window keeps squick-share running in the menu bar; the Dock icon only shows while a window is open (or if you turn the menu bar icon off in Settings).
 
 ## Screenshots
 
@@ -110,11 +111,11 @@ More screenshots and a full tour: **[documentation site](https://mukesh-devs.git
 3. Check the **4-digit PIN** matches, then click **Accept**. Files land in **Downloads** and are never opened automatically.
 
 **Mac → Phone**
-1. Drop files, folders or text onto the squick-share window, or right-click in Finder › **Share › squick-share**.
+1. Open squick-share (menu bar icon › **Open squick-share**), or right-click files in Finder › **Share › squick-share**.
 2. On the phone, open **Files › Quick Share › Receive** (or the **Quick Share** tile in Quick Settings) and keep it open. Android phones only show up while this screen is open.
-3. Click the phone when it appears, check the PIN, and accept on the phone.
+3. Drop the files on the phone when it appears (or click it to choose files), check the PIN, and accept on the phone.
 
-> 💡 On Xiaomi/Redmi phones, use **Quick Share** (Google's), not "Xiaomi Share". If the phone doesn't see your Mac, choose **Announce Again** from the eye menu, and make sure both are on the same Wi-Fi (not a guest network).
+> 💡 On Xiaomi/Redmi phones, use **Quick Share** (Google's), not "Xiaomi Share". If the phone doesn't see your Mac, choose **Visibility › Announce Again** from the menu bar icon, and make sure both are on the same Wi-Fi (not a guest network).
 > To use the Finder/Safari share menu, enable **squick-share** in System Settings › General › Login Items & Extensions › **Sharing** (macOS 15+), or Privacy & Security › Extensions › Sharing (macOS 13–14).
 
 More help: [troubleshooting guide](docs/TESTING.md#if-the-mac-does-not-appear-on-the-phone).

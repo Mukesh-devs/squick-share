@@ -65,6 +65,10 @@ final class NWByteStream: ByteStream, @unchecked Sendable {
                         if case .dns(let code) = error, code == -65570 {
                             if once.claim() { continuation.resume(throwing: TransportError.localNetworkDenied) }
                             connection.cancel()
+                        } else if Self.isUnreachable(error) {
+                            // The peer is gone or refused us: fail now instead of waiting for the timeout.
+                            if once.claim() { continuation.resume(throwing: Self.map(error)) }
+                            connection.cancel()
                         }
                     case .cancelled:
                         if once.claim() { continuation.resume(throwing: TransportError.closed) }
@@ -112,6 +116,13 @@ final class NWByteStream: ByteStream, @unchecked Sendable {
 
     func close() {
         connection.cancel()
+    }
+
+    /// Errors that mean retrying the same endpoint now is pointless (nothing listens there).
+    static func isUnreachable(_ error: NWError) -> Bool {
+        guard case .posix(let code) = error else { return false }
+        let unreachable: [POSIXErrorCode] = [.ECONNREFUSED, .EHOSTUNREACH, .ENETUNREACH, .EHOSTDOWN]
+        return unreachable.contains(code)
     }
 
     static func map(_ error: NWError) -> TransportError {

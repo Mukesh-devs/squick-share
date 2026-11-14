@@ -39,6 +39,10 @@ public final class QuickShareReceiver: @unchecked Sendable {
     private var generation = 0
     private var registered = false
     private var reannounceTimer: DispatchSourceTimer?
+    /// Consecutive listener failures, for the restart backoff. Reset once a listener is ready.
+    private var failedStarts = 0
+    /// Re-registrations triggered because Bonjour renamed our service, per listener.
+    private var renameRetries = 0
     /// EndpointInfo's 16 metadata bytes, random but stable for this receiver so the TXT record only
     /// changes when the user changes something.
     private let endpointMetadata = secureRandomBytes(16)
@@ -87,6 +91,7 @@ public final class QuickShareReceiver: @unchecked Sendable {
         generation += 1
         let generation = self.generation
         registered = false
+        renameRetries = 0
         if configuration.advertise {
             newListener.service = makeServiceLocked()
         }
@@ -96,11 +101,14 @@ public final class QuickShareReceiver: @unchecked Sendable {
         newListener.stateUpdateHandler = { [weak self, weak newListener] state in
             switch state {
             case .ready:
+                guard let self, self.currentGeneration == generation else { return }
                 let port = newListener?.port?.rawValue ?? 0
                 diagnostics.info("receiver", "listening on port \(port)")
+                self.resetFailures()
                 statusHandler(.advertising(port: port))
-                self?.scheduleRegistrationWatchdog(generation: generation, attempt: 1)
+                self.scheduleRegistrationWatchdog(generation: generation, attempt: 1)
             case .waiting(let error), .failed(let error):
+                guard let self, self.currentGeneration == generation else { return }
                 if case .dns(let code) = error, code == -65570 {
                     diagnostics.error("receiver", "local network permission denied")
                     statusHandler(.localNetworkDenied)
@@ -108,7 +116,11 @@ public final class QuickShareReceiver: @unchecked Sendable {
                     diagnostics.error("receiver", "listener error: \(error)")
                     statusHandler(.failed(error.localizedDescription))
                 }
+                // A failed listener never recovers by itself; without this the Mac stays invisible
+                // until the next wake or network change.
+                if case .failed = state { self.scheduleRestart(after: generation) }
             case .cancelled:
+                guard let self, self.currentGeneration == generation else { return }
                 statusHandler(.stopped)
             default:
                 break
@@ -116,9 +128,10 @@ public final class QuickShareReceiver: @unchecked Sendable {
         }
         newListener.serviceRegistrationUpdateHandler = { [weak self] change in
             switch change {
-            case .add:
+            case .add(let endpoint):
                 diagnostics.debug("receiver", "Bonjour service registered")
                 self?.setRegistered(true, generation: generation)
+                self?.checkRegisteredName(endpoint, generation: generation)
             case .remove:
                 diagnostics.debug("receiver", "Bonjour service removed")
                 self?.setRegistered(false, generation: generation)
@@ -214,6 +227,53 @@ public final class QuickShareReceiver: @unchecked Sendable {
                 + "nameBytes=\(options.serviceNameExtraBytes ? 10 : 8) reannounce=\(Int(options.reannounceInterval))s")
         }
         return NWListener.Service(name: name, type: ServiceName.serviceType, domain: nil, txtRecord: txt)
+    }
+
+    private func resetFailures() {
+        lock.lock()
+        failedStarts = 0
+        lock.unlock()
+    }
+
+    /// Restarts the listener after a failure, waiting 2, 4, 8 … up to 60 seconds between attempts.
+    private func scheduleRestart(after failedGeneration: Int) {
+        lock.lock()
+        failedStarts += 1
+        let delay = min(60, pow(2, Double(min(failedStarts, 6))))
+        lock.unlock()
+        diagnostics.info("receiver", "restarting listener in \(Int(delay)) s")
+        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            // Skip if the app stopped or restarted the receiver in the meantime.
+            let stillFailed = self.generation == failedGeneration && self.listener != nil
+            self.lock.unlock()
+            if stillFailed { self.start() }
+        }
+    }
+
+    /// Bonjour renames a service on a name conflict ("name (2)"). Android can't parse such a name,
+    /// so the Mac would be invisible. The usual cause is our own stale record (after sleep or a
+    /// restart), which clears up when we register again.
+    private func checkRegisteredName(_ endpoint: NWEndpoint, generation: Int) {
+        guard case .service(let registeredName, _, _, _) = endpoint else { return }
+        lock.lock()
+        let expected = ServiceName.make(endpointID: endpointID, extraBytes: configuration.identity.options.serviceNameExtraBytes)
+        let current = self.generation == generation
+        let retry = current && registeredName != expected && renameRetries < 3
+        if retry { renameRetries += 1 }
+        let attempt = renameRetries
+        lock.unlock()
+        guard current, registeredName != expected else { return }
+        guard retry else {
+            diagnostics.error("receiver", "Bonjour keeps renaming our service; phones may not see this Mac")
+            return
+        }
+        diagnostics.error("receiver", "Bonjour renamed our service (name conflict); registering again (attempt \(attempt))")
+        queue.asyncAfter(deadline: .now() + Double(attempt) * 2) { [weak self] in
+            guard let self, self.currentGeneration == generation else { return }
+            self.reannounce(reason: "name conflict")
+        }
     }
 
     private func setRegistered(_ value: Bool, generation: Int) {

@@ -145,6 +145,18 @@ jobs:
           fi
           exit $failed
 
+      - name: Documentation screenshots (neutral sample data)
+        if: success()
+        run: ./scripts/make-screenshots.sh --out build/docs-screenshots
+
+      - name: Upload documentation screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-screenshots
+          path: build/docs-screenshots
+          if-no-files-found: error
+
       - name: Compare project file with XcodeGen output
         if: always()
         continue-on-error: true

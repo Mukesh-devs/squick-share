@@ -13,7 +13,9 @@ BUNDLE_ID="tech.mukesh.squick-share"
 CONTAINER="$HOME/Library/Containers/$BUNDLE_ID/Data"
 PREFS="$CONTAINER/Library/Preferences/$BUNDLE_ID.plist"
 BACKUP_DIR="build/prefs-backup"
+# Output folder: docs/images by default, or the folder given with --out DIR.
 OUT="docs/images"
+if [[ "${1:-}" == "--out" && -n "${2:-}" ]]; then OUT="$2"; fi
 
 xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Debug \
   -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData build 2>&1 \

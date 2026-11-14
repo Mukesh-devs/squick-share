@@ -26,6 +26,8 @@ struct SettingsView: View {
                 case .diagnostics: DiagnosticsSettings()
                 }
             }
+            // The window's own background, not the form's: no darker band around the page header.
+            .scrollContentBackground(.hidden)
             .frame(maxWidth: 680, maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

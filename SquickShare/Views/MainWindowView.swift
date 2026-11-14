@@ -362,13 +362,16 @@ private struct VisibilityCard: View {
                     Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 HStack(spacing: 8) {
-                    Text("Allow me to be discovered by:").font(.callout)
+                    Text("Allow me to be discovered by:")
+                        .font(.callout)
+                        .fixedSize()
                     Picker("Allow me to be discovered by", selection: $settings.visibility) {
                         ForEach(Visibility.allCases) { Text($0.label).tag($0) }
                     }
                     .labelsHidden()
                     .fixedSize()
                 }
+                .layoutPriority(1)
             }
             Spacer(minLength: 8)
             Button("Announce Again") { model.announceAgain() }
@@ -444,7 +447,7 @@ private struct SettingsPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PageHeader(title: "Settings", subtitle: "How this Mac appears to others, where files go, and more.") {
+            PageHeader(title: "Settings", subtitle: "Name, visibility, files and more.") {
                 SettingsTabPicker()
             }
             .padding(.horizontal, 24)

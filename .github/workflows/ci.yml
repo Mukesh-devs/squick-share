@@ -1,0 +1,167 @@
+# Checks every push and pull request on a real Mac:
+#   - protocol unit tests
+#   - Debug and Release builds of the app
+#   - the app's UI test (opens, uses and closes every window and the menu), the Settings hang test,
+#     and launches of the Debug and Release apps with networking on, each checked for crashes
+#   - UI snapshots, saved as a workflow artifact
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUNDLE_ID: tech.mukesh.squick-share
+  SIGN: CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        # Same Xcode as local development and the release workflow.
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26.0.1*.app 2>/dev/null | head -1)
+          [ -n "$XCODE" ] || { echo "Xcode 26.0.1 is not installed on this runner"; ls -d /Applications/Xcode_*.app; exit 1; }
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+          sw_vers
+
+      - name: Protocol unit tests
+        working-directory: Packages/QuickShareCore
+        # The mDNS integration tests need a local network with multicast, which CI runners don't have.
+        run: |
+          status=0
+          swift test --skip DiscoveryIntegrationTests > swift-test.log 2>&1 || status=$?
+          grep -E "error:|failed|Executed [0-9]+ tests" swift-test.log | head -n 60
+          tail -n 5 swift-test.log
+          exit $status
+
+      - name: Build Debug app
+        run: |
+          set -o pipefail
+          xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Debug \
+            -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData $SIGN build 2>&1 \
+            | grep -E "error:|warning: .*(SquickShare|QuickShareCore)/|BUILD (SUCCEEDED|FAILED)" | sort -u | head -n 120
+          test -d build/DerivedData/Build/Products/Debug/squick-share.app
+
+      - name: Build Release app (arm64)
+        run: |
+          set -o pipefail
+          xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath build/DerivedDataRelease \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO $SIGN build 2>&1 \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" | sort -u | head -n 60
+          test -d build/DerivedDataRelease/Build/Products/Release/squick-share.app
+          codesign -d --entitlements - build/DerivedDataRelease/Build/Products/Release/squick-share.app 2>&1 | grep -E "bluetooth|sandbox|network" || true
+          plutil -extract NSBluetoothAlwaysUsageDescription raw build/DerivedDataRelease/Build/Products/Release/squick-share.app/Contents/Info.plist
+
+      - name: Run app checks
+        run: |
+          set +e
+          DEBUG_BIN=build/DerivedData/Build/Products/Debug/squick-share.app/Contents/MacOS/squick-share
+          RELEASE_BIN=build/DerivedDataRelease/Build/Products/Release/squick-share.app/Contents/MacOS/squick-share
+          CONTAINER="$HOME/Library/Containers/$BUNDLE_ID/Data"
+          mkdir -p build/checks
+          rm -f ~/Library/Logs/DiagnosticReports/squick-share* 2>/dev/null || true
+          failed=0
+
+          # Runs a command that must exit by itself within $1 seconds.
+          run_until_exit() {
+            local seconds=$1; shift
+            "$@" & local pid=$!
+            ( sleep "$seconds"; kill -9 "$pid" 2>/dev/null && echo "TIMED OUT after ${seconds}s" ) & local watcher=$!
+            wait "$pid"; local status=$?
+            kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null
+            return $status
+          }
+
+          # Launches the app normally (real networking) and checks it is still running after $2 seconds.
+          stays_alive() {
+            local bin=$1 seconds=$2 log=$3
+            "$bin" > "$log" 2>&1 & local pid=$!
+            sleep "$seconds"
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "still running after ${seconds}s"
+              kill -TERM "$pid"; wait "$pid" 2>/dev/null
+              return 0
+            fi
+            wait "$pid"; echo "exited early with status $?"; return 1
+          }
+
+          echo "::group::UI test (every window and the menu)"
+          if run_until_exit 150 env SQUICKSHARE_UI_TEST=1 "$DEBUG_BIN" > build/checks/ui-test.log 2>&1 \
+             && grep -q "ui test: finished" build/checks/ui-test.log; then echo "UI test passed"; else echo "UI test FAILED"; failed=1; fi
+          grep "ui test:" build/checks/ui-test.log | tail -n 40
+          echo "::endgroup::"
+
+          echo "::group::Settings tab test (hang check)"
+          if run_until_exit 60 env SQUICKSHARE_SETTINGS_TEST=1 "$DEBUG_BIN" > build/checks/settings-test.log 2>&1 \
+             && grep -q "settings tab test: finished" build/checks/settings-test.log; then echo "Settings test passed"; else echo "Settings test FAILED"; failed=1; fi
+          echo "::endgroup::"
+
+          echo "::group::Snapshots"
+          rm -rf "$CONTAINER/tmp/snapshots"
+          if run_until_exit 90 env SQUICKSHARE_SNAPSHOT=1 "$DEBUG_BIN" > build/checks/snapshot.log 2>&1 && ls "$CONTAINER"/tmp/snapshots/*.png >/dev/null 2>&1; then
+            mkdir -p build/snapshots && cp "$CONTAINER"/tmp/snapshots/*.png build/snapshots/ && ls build/snapshots
+          else
+            echo "Snapshots FAILED"; failed=1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Debug app launch with networking (40 s)"
+          if stays_alive "$DEBUG_BIN" 40 build/checks/debug-launch.log; then :; else failed=1; fi
+          echo "::endgroup::"
+
+          echo "::group::Release app launch with networking (40 s)"
+          if stays_alive "$RELEASE_BIN" 40 build/checks/release-launch.log; then :; else failed=1; fi
+          echo "::endgroup::"
+
+          echo "::group::App diagnostics log (Debug builds)"
+          tail -n 80 "$CONTAINER/tmp/diagnostics.log" 2>/dev/null || echo "(none)"
+          echo "::endgroup::"
+
+          sleep 5
+          if ls ~/Library/Logs/DiagnosticReports/squick-share* >/dev/null 2>&1; then
+            echo "CRASH REPORTS FOUND:"
+            mkdir -p build/checks/crashes && cp ~/Library/Logs/DiagnosticReports/squick-share* build/checks/crashes/
+            head -n 120 ~/Library/Logs/DiagnosticReports/squick-share*
+            failed=1
+          else
+            echo "No crash reports."
+          fi
+          exit $failed
+
+      - name: Compare project file with XcodeGen output
+        if: always()
+        continue-on-error: true
+        run: |
+          brew install xcodegen >/dev/null 2>&1 || exit 0
+          cp -R SquickShare.xcodeproj /tmp/committed.xcodeproj
+          xcodegen generate --quiet
+          git diff --stat -- SquickShare.xcodeproj
+          git diff -- SquickShare.xcodeproj/project.pbxproj | head -n 200
+          rm -rf SquickShare.xcodeproj && cp -R /tmp/committed.xcodeproj SquickShare.xcodeproj
+
+      - name: Upload snapshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-results
+          path: |
+            build/snapshots
+            build/checks
+          if-no-files-found: ignore

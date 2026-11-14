@@ -12,26 +12,37 @@ final class AppModel: ObservableObject {
     let diagnostics: Diagnostics
     let windows = WindowCoordinator()
     let notifications = NotificationManager()
+    private(set) var statusItem: StatusItemController?
 
     @Published private(set) var receiverStatus: ReceiverStatus = .stopped
     @Published private(set) var browserStatus: BrowserStatus = .stopped
+    @Published private(set) var beaconStatus: BeaconListenerStatus = .off
     @Published private(set) var hasNetwork = true
     @Published private(set) var pendingRequests: [IncomingTransferRequest] = []
     @Published private(set) var transfers: [ActiveTransfer] = []
     @Published private(set) var recents: [RecentTransfer] = []
-    @Published private(set) var pendingSendItems: [SendItem] = []
+    @Published private(set) var pendingSendItems: [SendItem] = [] {
+        didSet { pendingSendBytes = Self.bytes(of: pendingSendItems) }
+    }
+    /// Total size of the files in the send list (computed once per change, not on every redraw).
+    private(set) var pendingSendBytes: Int64 = 0
     @Published private(set) var nearbyDevices: [DiscoveredDevice] = []
     @Published private(set) var qrSession: QRCodeSession?
+    @Published private(set) var isMainWindowOpen = false
     @Published var notice: String?
     /// The selected Settings tab (kept here so it survives closing and reopening the window).
     @Published var settingsTab: SettingsTab = .general
+    /// Updated once a second, only while the "Visible for 10 minutes" countdown runs.
     @Published private(set) var now = Date()
 
     private var receiver: QuickShareReceiver?
     private var browser: NearbyBrowser?
+    private var beacon: QuickShareBeaconListener?
     private var outgoing: [UUID: OutgoingTransfer] = [:]
     private var requestDevices: [UUID: RemoteDevice] = [:]
     private var pathMonitor: NWPathMonitor?
+    private var pathSignature: String?
+    private var networkRestartTask: Task<Void, Never>?
     private var ticker: Timer?
     private var cancellables: Set<AnyCancellable> = []
     private var started = false
@@ -53,6 +64,11 @@ final class AppModel: ObservableObject {
         diagnostics.info("app", "squick-share \(Self.appVersion) starting on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
         notifications.onAction = { [weak self] action, id in self?.handleNotificationAction(action, id) }
         notifications.setUp()
+        windows.onMainWindowChange = { [weak self] event in self?.mainWindowChanged(event) }
+        windows.alwaysShowsDockIcon = !settings.showInMenuBar
+
+        // Created before anything browses, so our own advertisement is never listed as a nearby device.
+        receiver = makeReceiver()
 
         settings.$verboseLogging.dropFirst().sink { [weak self] in self?.diagnostics.verbose = $0 }.store(in: &cancellables)
         // Restart advertising when anything that is advertised changes.
@@ -61,43 +77,72 @@ final class AppModel: ObservableObject {
             .debounce(for: .milliseconds(600), scheduler: RunLoop.main)
             .sink { [weak self] _, _, _ in self?.restartNetworking() }
             .store(in: &cancellables)
+        // @Published sends before the value is stored, so apply changes on the next main-queue turn.
         settings.$visibility.dropFirst().sink { [weak self] visibility in
             DispatchQueue.main.async { self?.applyVisibility(visibility) }
+        }.store(in: &cancellables)
+        settings.$useBluetooth.dropFirst().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.applyBluetooth() }
+        }.store(in: &cancellables)
+        settings.$showInMenuBar.dropFirst().sink { [weak self] show in
+            DispatchQueue.main.async { self?.applyMenuBarIcon(show) }
         }.store(in: &cancellables)
 
         let monitor = NWPathMonitor()
         let ref = weakRef
         monitor.pathUpdateHandler = { path in
             let available = path.status == .satisfied
-            DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.setNetworkAvailable(available) } }
+            // What identifies "the network we are on": a new Wi-Fi network changes the gateway.
+            let interfaces = path.availableInterfaces.filter { $0.type == .wifi || $0.type == .wiredEthernet }.map(\.name)
+            let signature = "\(available)|\(interfaces.sorted())|\(path.gateways.map { "\($0)" }.sorted())"
+            DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.networkPathChanged(available: available, signature: signature) } }
         }
         monitor.start(queue: DispatchQueue(label: "squickshare.path"))
         pathMonitor = monitor
 
-        // Re-register Bonjour after sleep: the network may have changed.
+        // Re-register Bonjour after sleep: the network may have changed. Wait a moment, like Google
+        // does, because a Mac can wake briefly for network activity and sleep again.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.diagnostics.info("app", "woke from sleep; restarting discovery")
-                self?.restartNetworking(full: true)
-            }
+            MainActor.assumeIsolated { self?.scheduleNetworkRestart(reason: "woke from sleep", delay: 1) }
+        }
+        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.notifications.refreshAuthorization() }
         }
 
-        ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
         applyVisibility(settings.visibility)
+        applyBluetooth()
+        let item = StatusItemController(model: self)
+        item.install(visible: settings.showInMenuBar)
+        statusItem = item
+        windows.updateActivationPolicy()
     }
 
     var identity: LocalIdentity {
         LocalIdentity(name: settings.deviceName.trimmingCharacters(in: .whitespacesAndNewlines), options: settings.protocolOptions)
     }
 
-    private func setNetworkAvailable(_ available: Bool) {
-        guard available != hasNetwork else { return }
-        hasNetwork = available
-        diagnostics.info("app", "network \(available ? "available" : "unavailable")")
-        // Re-register Bonjour on a new network.
-        if available { restartNetworking(full: true) }
+    private func networkPathChanged(available: Bool, signature: String) {
+        let first = pathSignature == nil
+        let changed = signature != pathSignature
+        pathSignature = signature
+        if available != hasNetwork {
+            hasNetwork = available
+            diagnostics.info("app", "network \(available ? "available" : "unavailable")")
+        }
+        // Any change of network (not just losing it) needs a fresh Bonjour registration.
+        guard !first, changed, available else { return }
+        scheduleNetworkRestart(reason: "network changed", delay: 1.5)
+    }
+
+    /// Restarts discovery after `delay`; changes that arrive in a burst restart it only once.
+    private func scheduleNetworkRestart(reason: String, delay: TimeInterval) {
+        networkRestartTask?.cancel()
+        networkRestartTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled, let self else { return }
+            self.diagnostics.info("app", "\(reason); restarting discovery")
+            self.restartNetworking(full: true)
+        }
     }
 
     private func tick() {
@@ -108,7 +153,24 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: Visibility and receiver
+    /// The one-second timer only runs during the "Visible for 10 minutes" countdown.
+    private func updateTicker() {
+        if settings.visibility == .temporary {
+            guard ticker == nil else { return }
+            let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.tick() }
+            }
+            timer.tolerance = 0.2
+            RunLoop.main.add(timer, forMode: .common)   // keeps counting while a menu is open
+            ticker = timer
+            now = Date()
+        } else {
+            ticker?.invalidate()
+            ticker = nil
+        }
+    }
+
+    // MARK: Visibility, receiver and Bluetooth
 
     func applyVisibility(_ visibility: Visibility) {
         if visibility == .temporary {
@@ -117,33 +179,39 @@ final class AppModel: ObservableObject {
             settings.temporaryVisibilityUntil = nil
         }
         if visibility == .hidden { stopReceiver() } else { startReceiver() }
+        updateTicker()
     }
 
-    private func startReceiver() {
+    private func makeReceiver() -> QuickShareReceiver {
         var configuration = QuickShareReceiver.Configuration(identity: identity)
         configuration.interface = settings.interface
-        if let receiver {
-            // Updates the advertisement in place when running; starts it when it was stopped.
-            receiver.update(configuration)
-            if !receiver.isRunning { receiver.start() }
-            return
-        }
         let ref = weakRef
-        let receiver = QuickShareReceiver(
+        return QuickShareReceiver(
             configuration: configuration, diagnostics: diagnostics,
             eventHandler: { event in
                 DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.handle(event, direction: .incoming) } }
             },
             statusHandler: { status in
-                DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.receiverStatus = status } }
+                DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.setReceiverStatus(status) } }
             })
-        self.receiver = receiver
-        receiver.start()
+    }
+
+    private func setReceiverStatus(_ status: ReceiverStatus) {
+        if receiverStatus != status { receiverStatus = status }
+    }
+
+    private func startReceiver() {
+        guard let receiver else { return }
+        var configuration = QuickShareReceiver.Configuration(identity: identity)
+        configuration.interface = settings.interface
+        // Updates the advertisement in place when running; starts it when it was stopped.
+        receiver.update(configuration)
+        if !receiver.isRunning { receiver.start() }
     }
 
     private func stopReceiver() {
         receiver?.stop()
-        receiverStatus = .stopped
+        setReceiverStatus(.stopped)
     }
 
     /// - Parameter full: restart the listener (after a network change or wake) instead of updating it in place.
@@ -154,8 +222,38 @@ final class AppModel: ObservableObject {
         }
         if browser != nil {
             stopBrowser()
-            startBrowser()
+            updateBrowsing()
         }
+    }
+
+    private func applyBluetooth() {
+        if settings.useBluetooth {
+            guard beacon == nil else { return }
+            let ref = weakRef
+            let listener = QuickShareBeaconListener(
+                diagnostics: diagnostics,
+                onBeacon: { DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.phoneStartedSharing() } } },
+                onStatus: { status in DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.beaconStatus = status } } })
+            beacon = listener
+            listener.start()
+        } else {
+            beacon?.stop()
+            beacon = nil
+            beaconStatus = .off
+        }
+    }
+
+    /// A phone nearby just opened its Quick Share sheet: announce this Mac now, so the phone lists it
+    /// even if its Wi-Fi search started before it could hear our earlier announcements.
+    private func phoneStartedSharing() {
+        guard settings.visibility != .hidden, case .advertising = receiverStatus else { return }
+        receiver?.reannounce(reason: "a nearby phone started Quick Share")
+    }
+
+    private func applyMenuBarIcon(_ show: Bool) {
+        statusItem?.setVisible(show)
+        windows.alwaysShowsDockIcon = !show
+        windows.updateActivationPolicy()
     }
 
     var statusLine: String {
@@ -164,6 +262,7 @@ final class AppModel: ObservableObject {
         case .failed: return "Can't be discovered right now"
         default: break
         }
+        if !hasNetwork { return "Not connected to a network" }
         switch settings.visibility {
         case .everyone: return "Visible as \(identity.name)"
         case .hidden: return "Hidden"
@@ -173,12 +272,26 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Whether other devices can find this Mac right now.
+    var isDiscoverable: Bool {
+        if case .advertising = receiverStatus { return settings.visibility != .hidden && hasNetwork }
+        return false
+    }
+
     var localNetworkDenied: Bool {
         receiverStatus == .localNetworkDenied || browserStatus == .localNetworkDenied
     }
 
     /// Transfers still running (not completed or failed).
     var runningTransfers: [ActiveTransfer] { transfers.filter { !$0.isFinished } }
+
+    /// Nearby devices that can be listed (hidden devices are only reachable by QR code).
+    var visibleDevices: [DiscoveredDevice] { nearbyDevices.filter { $0.name != nil } }
+
+    /// The most recent outgoing transfer to `device`, while it is shown.
+    func transfer(to device: DiscoveredDevice) -> ActiveTransfer? {
+        transfers.first { $0.direction == .outgoing && $0.targetID == device.id }
+    }
 
     var menuBarState: MenuBarState {
         let running = runningTransfers
@@ -215,22 +328,14 @@ final class AppModel: ObservableObject {
             let percent = total > 0 ? Int(Double(done) / Double(total) * 100) : 0
             return "\(running.count) transfers · \(percent)%"
         }
-        let verb = first.direction == .incoming ? "Receiving from" : "Sending to"
         switch first.phase {
-        case .connecting:
-            return "Connecting to \(first.deviceName)…"
-        case .waitingForAcceptance:
-            return "Waiting for \(first.deviceName) to accept"
+        case .connecting, .waitingForAcceptance:
+            return first.headline
         default:
-            var text = "\(verb) \(first.deviceName) · \(Int(first.fraction * 100))%"
+            var text = "\(first.direction == .incoming ? "Receiving from" : "Sending to") \(first.deviceName) · \(Int(first.fraction * 100))%"
             if first.meter.bytesPerSecond > 0 { text += " · \(Format.speed(first.meter.bytesPerSecond))" }
             return text
         }
-    }
-
-    var menuBarSymbol: String {
-        if transfers.contains(where: { !$0.isFinished }) { return "arrow.up.arrow.down.circle.fill" }
-        return settings.visibility == .hidden ? "antenna.radiowaves.left.and.right.slash" : "antenna.radiowaves.left.and.right"
     }
 
     // MARK: Events
@@ -280,12 +385,27 @@ final class AppModel: ObservableObject {
             return
         }
         pendingRequests.append(request)
-        windows.showIncomingRequest(request, model: self)
-        if settings.notificationsEnabled { notifications.postIncoming(request) }
-        NSSound(named: "Glass")?.play()
+        presentRequest(request)
+    }
+
+    /// Like AirDrop: a notification with Accept and Decline, or the main window when it is in front.
+    /// The request window is only a fallback for when notifications can't be shown, and it never
+    /// takes keyboard focus, so typing elsewhere can't accept a transfer by accident.
+    private func presentRequest(_ request: IncomingTransferRequest) {
+        let windowInFront = isMainWindowOpen && NSApp.isActive
+        var notified = false
+        if !windowInFront, settings.notificationsEnabled, notifications.canShowAlerts {
+            notifications.postIncoming(request)
+            notified = true
+        }
+        if !notified, !isMainWindowOpen {
+            windows.showIncomingRequest(request, model: self)
+        }
+        if !notified { NSSound(named: "Glass")?.play() }
     }
 
     func accept(_ request: IncomingTransferRequest, trust: Bool) {
+        guard pendingRequests.contains(where: { $0.id == request.id }) || settings.isTrusted(request.device) else { return }
         if trust { settings.trust(request.device) }
         removeRequest(request.id)
         let names = request.files.map(\.name)
@@ -353,18 +473,8 @@ final class AppModel: ObservableObject {
             id: id, date: Date(), direction: transfer.direction, deviceName: transfer.deviceName,
             itemNames: transfer.direction == .incoming ? names : [transfer.summary],
             fileURLs: transfer.savedFiles, text: transfer.texts.first, succeeded: error == nil, message: error?.userMessage))
+        notifyResult(of: transfer, error: error)
 
-        if settings.notificationsEnabled {
-            if let error, error != .cancelledByUser, !(error == .declined && transfer.direction == .incoming) {
-                notifications.postResult(title: "Transfer failed", body: "\(transfer.deviceName): \(error.userMessage)", reveal: nil)
-            } else if error == nil, transfer.direction == .incoming, !transfer.savedFiles.isEmpty {
-                notifications.postResult(title: "Received from \(transfer.deviceName)",
-                                         body: Format.summary(files: names, texts: transfer.texts.count),
-                                         reveal: transfer.savedFiles.first)
-            } else if error == nil, transfer.direction == .outgoing {
-                notifications.postResult(title: "Sent to \(transfer.deviceName)", body: transfer.summary, reveal: nil)
-            }
-        }
         // Finished rows stay briefly, then move to Recent.
         let delay: TimeInterval = error == nil ? 4 : 12
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
@@ -372,12 +482,32 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func notifyResult(of transfer: ActiveTransfer, error: TransferError?) {
+        // The window already shows the result when it is in front.
+        guard settings.notificationsEnabled, !(isMainWindowOpen && NSApp.isActive) else { return }
+        if let error {
+            guard error != .cancelledByUser, !(error == .declined && transfer.direction == .incoming) else { return }
+            notifications.postResult(title: "Transfer failed", body: "\(transfer.deviceName): \(error.userMessage)", reveal: nil)
+        } else if transfer.direction == .incoming {
+            guard !transfer.savedFiles.isEmpty || !transfer.texts.isEmpty else { return }
+            let items = Format.countSummary(files: transfer.savedFiles.count, texts: transfer.texts.count,
+                                            bytes: transfer.savedFiles.isEmpty ? 0 : transfer.totalBytes)
+            notifications.postResult(title: "Transfer complete", body: "\(items) received from \(transfer.deviceName)",
+                                     reveal: transfer.savedFiles.first)
+        } else {
+            notifications.postResult(title: "Sent to \(transfer.deviceName)", body: transfer.summary, reveal: nil)
+        }
+    }
+
     private func handleNotificationAction(_ action: NotificationManager.Action, _ id: UUID) {
-        guard let request = pendingRequests.first(where: { $0.id == id }) else { return }
+        guard let request = pendingRequests.first(where: { $0.id == id }) else {
+            if action == .open { showMainWindow() }
+            return
+        }
         switch action {
         case .accept: accept(request, trust: false)
         case .decline: decline(request)
-        case .open: windows.showIncomingRequest(request, model: self)
+        case .open: showMainWindow()
         }
     }
 
@@ -408,6 +538,58 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func copyText(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    func openDownloadFolder() {
+        NSWorkspace.shared.open(settings.downloadFolder)
+    }
+
+    // MARK: Windows
+
+    func showMainWindow() {
+        windows.showMain(model: self)
+    }
+
+    func showSettings(tab: SettingsTab? = nil) {
+        if let tab { settingsTab = tab }
+        windows.showSettings(model: self)
+    }
+
+    private func mainWindowChanged(_ event: WindowCoordinator.MainWindowEvent) {
+        isMainWindowOpen = event == .opened || event == .restored
+        if event == .closed {
+            // Nothing can be sent without the window, so forget the send list and stop looking for devices.
+            pendingSendItems = []
+            qrSession = nil
+        }
+        updateBrowsing()
+    }
+
+    /// Lets the user pick files in a sheet on the main window, then sends them to `device`,
+    /// or adds them to the send list when no device is given.
+    func chooseFiles(for device: DiscoveredDevice? = nil) {
+        showMainWindow()
+        guard let window = windows.mainWindow else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.prompt = device == nil ? "Add" : "Send"
+        panel.message = device.map { "Choose files or folders to send to \($0.name ?? "the device")." } ?? "Choose files or folders to send."
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let self else { return }
+            let urls = panel.urls
+            if let device {
+                self.send(SendItems.expand(urls), to: device)
+            } else {
+                self.addSendFiles(urls)
+            }
+        }
+    }
+
     // MARK: Sending
 
     func addSendFiles(_ urls: [URL]) {
@@ -428,32 +610,64 @@ final class AppModel: ObservableObject {
     private func addSendItems(_ items: [SendItem]) {
         pendingSendItems.append(contentsOf: items)
         diagnostics.info("app", "send list has \(pendingSendItems.count) items")
-        startBrowser()
+        updateBrowsing()
     }
 
     func clearSendItems() {
         pendingSendItems = []
         qrSession = nil
-        stopBrowser()
+        updateBrowsing()
     }
 
-    var sendSummary: String {
-        let files = pendingSendItems.compactMap { item -> String? in
+    var sendSummary: String { Self.summary(of: pendingSendItems) }
+
+    static func summary(of items: [SendItem]) -> String {
+        let files = items.compactMap { item -> String? in
             if case .file(let url, _) = item { return url.lastPathComponent }
             return nil
         }
-        let texts = pendingSendItems.count - files.count
-        return Format.summary(files: files, texts: texts)
+        return Format.summary(files: files, texts: items.count - files.count)
     }
 
+    static func bytes(of items: [SendItem]) -> Int64 {
+        items.reduce(Int64(0)) { total, item in
+            guard case .file(let url, _) = item else { return total }
+            return total + Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+        }
+    }
+
+    /// What clicking a device does: send the chosen items, or pick files to send to it.
+    func activate(_ device: DiscoveredDevice) {
+        if let current = transfer(to: device), !current.isFinished { return }   // already sending to it
+        if pendingSendItems.isEmpty {
+            chooseFiles(for: device)
+        } else {
+            send(to: device)
+        }
+    }
+
+    /// Sends the pending items to `device`.
     func send(to device: DiscoveredDevice, qr: QRCodeSession? = nil) {
         let items = pendingSendItems
         guard !items.isEmpty else { return }
+        startSend(items, to: device, qr: qr)
+        clearSendItems()
+    }
+
+    /// Sends `items` (for example files dropped on a device) without touching the send list.
+    func send(_ items: [SendItem], to device: DiscoveredDevice) {
+        guard !items.isEmpty else {
+            notice = "Nothing to send: folders were empty or files couldn't be read."
+            return
+        }
+        startSend(items, to: device, qr: nil)
+    }
+
+    private func startSend(_ items: [SendItem], to device: DiscoveredDevice, qr: QRCodeSession?) {
         let empty = SendItems.emptyFileCount(items)
         if empty > 0 { notice = "\(empty) empty file\(empty == 1 ? " was" : "s were") skipped (Quick Share can't send empty files)." }
 
         let sender = QuickShareSender(identity: identity, interface: settings.interface, diagnostics: diagnostics)
-        let summary = sendSummary
         let ref = weakRef
         let transfer = sender.send(items, to: device, qrSession: qr) { event in
             DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.handle(event, direction: .outgoing) } }
@@ -461,21 +675,20 @@ final class AppModel: ObservableObject {
         outgoing[transfer.id] = transfer
         let name = qr.flatMap { device.qrMatch($0) } ?? device.name ?? "Device"
         transfers.insert(ActiveTransfer(id: transfer.id, direction: .outgoing, deviceName: name, deviceType: device.type,
-                                        summary: summary, phase: .connecting), at: 0)
+                                        summary: Self.summary(of: items), phase: .connecting, targetID: device.id), at: 0)
         diagnostics.info("app", "sending to endpoint \(device.endpointID) type=\(device.type) via \(qr == nil ? "list" : "QR")")
-        clearSendItems()
-        windows.close(id: "send")
     }
 
     func showQRCode() {
         qrSession = QRCodeSession()
         diagnostics.info("app", "showing QR code; waiting for a phone to answer it")
-        startBrowser()
+        updateBrowsing()
         checkQRMatch()
     }
 
     func hideQRCode() {
         qrSession = nil
+        updateBrowsing()
     }
 
     private func checkQRMatch() {
@@ -483,6 +696,15 @@ final class AppModel: ObservableObject {
         if let device = nearbyDevices.first(where: { $0.qrMatch(qrSession) != nil }) {
             diagnostics.info("app", "QR code answered by endpoint \(device.endpointID)")
             send(to: device, qr: qrSession)
+        }
+    }
+
+    /// Looks for nearby devices only while something can be sent: the window is open or items wait.
+    private func updateBrowsing() {
+        if isMainWindowOpen || !pendingSendItems.isEmpty || qrSession != nil {
+            startBrowser()
+        } else {
+            stopBrowser()
         }
     }
 
@@ -495,20 +717,27 @@ final class AppModel: ObservableObject {
             updateHandler: { devices in
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
-                        ref.value?.nearbyDevices = devices
-                        ref.value?.checkQRMatch()
+                        guard let model = ref.value else { return }
+                        if model.nearbyDevices != devices { model.nearbyDevices = devices }
+                        model.checkQRMatch()
                     }
                 }
             },
             statusHandler: { status in
-                DispatchQueue.main.async { MainActor.assumeIsolated { ref.value?.browserStatus = status } }
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let model = ref.value, model.browser != nil, model.browserStatus != status else { return }
+                        model.browserStatus = status
+                    }
+                }
             })
         self.browser = browser
         browser.start()
     }
 
     private func stopBrowser() {
-        browser?.stop()
+        guard let current = browser else { return }
+        current.stop()
         browser = nil
         nearbyDevices = []
         browserStatus = .stopped
@@ -530,7 +759,7 @@ final class AppModel: ObservableObject {
             }
         }
         if !files.isEmpty { addSendFiles(files) }
-        if !pendingSendItems.isEmpty { windows.showSend(model: self) }
+        if !pendingSendItems.isEmpty { showMainWindow() }
     }
 
     // MARK: Diagnostics
@@ -555,6 +784,8 @@ final class AppModel: ObservableObject {
             "visibility": settings.visibility.rawValue,
             "receiver": "\(receiverStatus)",
             "browser": "\(browserStatus)",
+            "bluetooth": settings.useBluetooth ? "\(beaconStatus)" : "off in settings",
+            "menuBarIcon": "\(settings.showInMenuBar)",
             "network": hasNetwork ? "available" : "unavailable",
             "interface": settings.interface.rawValue,
             "verbose": "\(settings.verboseLogging)",
@@ -570,16 +801,26 @@ final class AppModel: ObservableObject {
     /// Fills the UI with sample data for snapshot rendering.
     func debugLoadSampleState(request: IncomingTransferRequest) {
         pendingRequests = [request]
+        let pixel = DiscoveredDevice.preview(name: "Pixel 9", type: .phone)
+        let tablet = DiscoveredDevice.preview(name: "Galaxy Tab S9", type: .tablet)
+        let laptop = DiscoveredDevice.preview(name: "Office PC", type: .laptop)
+        nearbyDevices = [pixel, tablet, laptop]
         var receiving = ActiveTransfer(id: UUID(), direction: .incoming, deviceName: "Redmi Note 13", deviceType: .phone,
                                        summary: "3 files", phase: .transferring, bytes: 61_000_000, totalBytes: 187_000_000)
         receiving.meter.add(0, at: Date().addingTimeInterval(-2))
         receiving.meter.add(61_000_000)
+        var sending = ActiveTransfer(id: UUID(), direction: .outgoing, deviceName: "Galaxy Tab S9", deviceType: .tablet,
+                                     summary: "3 files", phase: .transferring, bytes: 24_100_000, totalBytes: 28_400_000,
+                                     targetID: tablet.id)
+        sending.meter.add(0, at: Date().addingTimeInterval(-1))
+        sending.meter.add(24_100_000)
         transfers = [
             receiving,
+            sending,
             ActiveTransfer(id: UUID(), direction: .outgoing, deviceName: "Pixel 9", deviceType: .phone,
-                           summary: "holiday.mov", phase: .waitingForAcceptance(pin: "1234")),
-            ActiveTransfer(id: UUID(), direction: .outgoing, deviceName: "Pixel 9", deviceType: .phone,
-                           summary: "report.pdf", phase: .failed("The other device declined the transfer.")),
+                           summary: "holiday.mov", phase: .waitingForAcceptance(pin: "1234"), targetID: pixel.id),
+            ActiveTransfer(id: UUID(), direction: .outgoing, deviceName: "Office PC", deviceType: .laptop,
+                           summary: "report.pdf", phase: .failed("The other device declined the transfer."), targetID: laptop.id),
         ]
         recents = [
             RecentTransfer(id: UUID(), date: Date().addingTimeInterval(-300), direction: .incoming, deviceName: "Redmi Note 13",
@@ -587,19 +828,35 @@ final class AppModel: ObservableObject {
                            text: nil, succeeded: true, message: nil),
             RecentTransfer(id: UUID(), date: Date().addingTimeInterval(-4000), direction: .incoming, deviceName: "Redmi Note 13",
                            itemNames: [], fileURLs: [], text: "https://example.com", succeeded: true, message: nil),
+            RecentTransfer(id: UUID(), date: Date().addingTimeInterval(-90000), direction: .outgoing, deviceName: "Pixel 9",
+                           itemNames: ["Presentation.key"], fileURLs: [], text: nil, succeeded: false,
+                           message: "The other device declined the transfer."),
         ]
         pendingSendItems = [.text("Hello from the Mac")]
-        nearbyDevices = [.preview(name: "Pixel 9", type: .phone), .preview(name: "Galaxy Tab S9", type: .tablet),
-                         .preview(name: "Office PC", type: .laptop)]
     }
 
-    /// Nothing in progress: just visibility, the drop zone and recent transfers.
-    func debugLoadIdleState() {
+    /// Only nearby devices and recent transfers: what the window looks like most of the time.
+    func debugLoadBrowsingState() {
         pendingRequests = []
         transfers = []
         pendingSendItems = []
         notice = nil
     }
+
+    /// Nothing nearby yet: the searching state.
+    func debugLoadSearchingState() {
+        debugLoadBrowsingState()
+        nearbyDevices = []
+        browserStatus = .browsing
+    }
+
+    /// Snapshots render without networking: show the states a running app would have.
+    func debugPrepareSnapshot() {
+        isMainWindowOpen = true
+        receiverStatus = .advertising(port: 0)
+        browserStatus = .browsing
+    }
+
     #endif
 
     /// Sends a fresh Bonjour announcement so phones that just joined the network see this Mac.

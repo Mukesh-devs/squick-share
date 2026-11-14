@@ -42,6 +42,8 @@ struct ActiveTransfer: Identifiable {
     var texts: [String] = []
     /// The user pressed Cancel; waiting for the session to stop.
     var cancelling = false
+    /// Outgoing only: the `DiscoveredDevice.id` it goes to, so the device list can show its progress.
+    var targetID: String? = nil
 
     var fraction: Double { totalBytes > 0 ? min(1, Double(bytes) / Double(totalBytes)) : 0 }
 
@@ -55,6 +57,23 @@ struct ActiveTransfer: Identifiable {
         case .completed, .failed: true
         default: false
         }
+    }
+
+    /// One line for menus and notifications, e.g. "Sending 3 files…".
+    var headline: String {
+        switch phase {
+        case .connecting: return "Connecting to \(deviceName)…"
+        case .waitingForAcceptance: return "Waiting for \(deviceName)…"
+        case .transferring: return "\(direction == .incoming ? "Receiving" : "Sending") \(summary)…"
+        case .completed: return direction == .incoming ? "Received \(summary)" : "Sent \(summary)"
+        case .failed: return "\(direction == .incoming ? "Receiving" : "Sending") \(summary) failed"
+        }
+    }
+
+    /// "24.1 MB of 28.4 MB (85%)", or nil before sizes are known.
+    var progressLine: String? {
+        guard totalBytes > 0 else { return nil }
+        return "\(Format.bytes(bytes)) of \(Format.bytes(totalBytes)) (\(Int(fraction * 100))%)"
     }
 }
 
@@ -97,6 +116,15 @@ enum Format {
     static func countdown(_ seconds: TimeInterval) -> String {
         let total = max(0, Int(seconds.rounded(.up)))
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    /// "5 files (132.7 MB)", "1 link", "2 files and text (3 MB)".
+    static func countSummary(files: Int, texts: Int, bytes: Int64) -> String {
+        var parts: [String] = []
+        if files > 0 { parts.append(files == 1 ? "1 file" : "\(files) files") }
+        if texts > 0 { parts.append(texts == 1 ? "text" : "\(texts) texts") }
+        let base = parts.isEmpty ? "Transfer" : parts.joined(separator: " and ")
+        return bytes > 0 ? "\(base) (\(Self.bytes(bytes)))" : base
     }
 
     static func summary(files: [String], texts: Int) -> String {

@@ -53,6 +53,8 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>squick-share listens for nearby Android phones that open Quick Share, so it can announce this Mac to them right away. Nothing is sent over Bluetooth.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_FC9F5ED42C8A._tcp</string>

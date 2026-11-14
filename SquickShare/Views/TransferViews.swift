@@ -3,10 +3,12 @@ import QuickShareCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Full accept/decline prompt (shown in its own floating window).
+/// Accept/decline prompt, shown in the main window or, when notifications are off, in a small panel.
 struct IncomingRequestView: View {
     @EnvironmentObject private var model: AppModel
     let request: IncomingTransferRequest
+    /// Inside the main window: no Return/Escape shortcuts, so typing elsewhere can't answer it.
+    var inline = false
     @State private var trust = false
 
     var body: some View {
@@ -33,11 +35,12 @@ struct IncomingRequestView: View {
 
             HStack {
                 Button("Decline", role: .cancel) { model.decline(request) }
-                    .keyboardShortcut(.cancelAction)
+                    .keyboardShortcut(inline ? nil : .cancelAction)
                     .accessibilityHint("Rejects this transfer")
                 Spacer()
                 Button("Accept") { model.accept(request, trust: trust) }
-                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(inline ? nil : .defaultAction)
                     .accessibilityHint("Saves to \(model.settings.downloadFolder.lastPathComponent)")
             }
             HStack {
@@ -50,36 +53,6 @@ struct IncomingRequestView: View {
             }
         }
         .padding(18)
-    }
-}
-
-/// Compact accept/decline card inside the popover.
-struct IncomingRequestCard: View {
-    @EnvironmentObject private var model: AppModel
-    let request: IncomingTransferRequest
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: Format.deviceSymbol(request.device.type)).accessibilityHidden(true)
-                Text(request.device.name).font(.subheadline.weight(.semibold))
-                Spacer()
-                Text("PIN \(request.pin)").font(.subheadline.monospacedDigit()).accessibilityLabel("PIN \(spelled(request.pin))")
-            }
-            Text(Format.summary(files: request.files.map(\.name), texts: request.texts.count)
-                 + (request.totalBytes > 0 ? " · \(Format.bytes(request.totalBytes))" : ""))
-                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-            HStack {
-                Button("Decline") { model.decline(request) }
-                Spacer()
-                Button("Details…") { model.windows.showIncomingRequest(request, model: model) }
-                    .buttonStyle(.link)
-                Button("Accept") { model.accept(request, trust: false) }
-                    .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding(10)
-        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 

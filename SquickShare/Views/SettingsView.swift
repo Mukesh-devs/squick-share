@@ -31,7 +31,7 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 500, height: 460)
+        .frame(width: 500, height: 540)
     }
 }
 
@@ -79,7 +79,20 @@ struct GeneralSettings: View {
                 set: { loginError = settings.setLaunchAtLogin($0) }))
             if let loginError { Text(loginError).font(.caption).foregroundStyle(.orange) }
 
+            Toggle("Show in menu bar", isOn: $settings.showInMenuBar)
+            if !settings.showInMenuBar {
+                Text("squick-share keeps its Dock icon while the menu bar icon is off.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Toggle("Show notifications", isOn: $settings.notificationsEnabled)
+                .help("Incoming requests appear as notifications with Accept and Decline")
+
+            Toggle("Use Bluetooth to detect phones", isOn: $settings.useBluetooth)
+                .help("When a nearby phone opens Quick Share, this Mac announces itself right away. Nothing is sent over Bluetooth.")
+            if settings.useBluetooth {
+                BluetoothStatusText(status: model.beaconStatus)
+            }
 
             Picker("Network", selection: $settings.interface) {
                 Text("Any network").tag(InterfaceRestriction.any)
@@ -209,5 +222,34 @@ struct ProtocolOptionsEditor: View {
             Text("1 MB").tag(1024 * 1024)
         }
         Button("Reset to Defaults") { options = ProtocolOptions() }
+    }
+}
+
+/// Explains what the Bluetooth listener is doing, and what to do when it can't run.
+private struct BluetoothStatusText: View {
+    let status: BeaconListenerStatus
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(message).font(.caption).foregroundStyle(.secondary)
+            if status == .notAllowed {
+                Button("Open System Settings") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(.link).font(.caption)
+            }
+        }
+    }
+
+    private var message: String {
+        switch status {
+        case .listening: return "Listening for phones that start Quick Share. Only listens; nothing is sent."
+        case .bluetoothOff: return "Bluetooth is off. Phones still find this Mac over Wi-Fi, just a little slower."
+        case .notAllowed: return "squick-share isn't allowed to use Bluetooth."
+        case .unsupported: return "This Mac has no Bluetooth LE."
+        case .off: return "Starting…"
+        }
     }
 }

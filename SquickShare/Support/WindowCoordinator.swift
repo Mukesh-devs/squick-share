@@ -2,44 +2,101 @@ import AppKit
 import QuickShareCore
 import SwiftUI
 
-/// Opens and tracks the app's standalone windows (prompts, send, settings, received text).
-/// A menu bar app can't rely on SwiftUI scenes being open, so these are AppKit windows hosting SwiftUI.
+/// Opens and tracks the app's windows (main, settings, request prompts, received text).
+/// They are AppKit windows hosting SwiftUI, sized once from their content: SwiftUI's automatic window
+/// resizing can loop on macOS 26 (each resize changes the window's corner safe area, which re-lays out
+/// the content, which resizes the window again) until AppKit throws and the app quits.
 @MainActor
 final class WindowCoordinator: NSObject, NSWindowDelegate {
-    private var windows: [String: NSWindow] = [:]
+    static let mainID = "main"
+    static let settingsID = "settings"
 
-    func show<Content: View>(id: String, title: String, floating: Bool = false, resizable: Bool = false,
-                             @ViewBuilder content: () -> Content) {
+    private var windows: [String: NSWindow] = [:]
+    enum MainWindowEvent { case opened, minimized, restored, closed }
+    /// Called when the main window opens, closes, is minimized or restored.
+    var onMainWindowChange: ((MainWindowEvent) -> Void)?
+    /// Keep the Dock icon even without windows (the menu bar icon is turned off).
+    var alwaysShowsDockIcon = false
+
+    var mainWindow: NSWindow? { windows[Self.mainID] }
+
+    private enum Kind {
+        /// A regular window: the app shows a Dock icon and menus while it is open.
+        case standard(resizable: Bool, size: NSSize?)
+        /// A small floating panel that never takes keyboard focus or activates the app.
+        case floatingPanel
+    }
+
+    private func show<Content: View>(id: String, title: String, kind: Kind, activate: Bool = true,
+                                     @ViewBuilder content: () -> Content) {
         if let existing = windows[id] {
-            existing.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            if existing.isMiniaturized { existing.deminiaturize(nil) }
+            if activate {
+                existing.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            } else {
+                existing.orderFrontRegardless()
+            }
             return
         }
         let controller = NSHostingController(rootView: content())
-        // Size the window once from its content instead of letting SwiftUI keep resizing it.
-        // Automatic resizing can loop on macOS 26: each resize changes the window's corner safe area,
-        // which re-lays out the content, which resizes the window again, until AppKit throws
-        // ("more Update Constraints in Window passes than there are views") and the app quits.
         controller.sizingOptions = []
         var size = controller.view.fittingSize
+        if case .standard(_, let fixed?) = kind { size = fixed }
         if size.width < 1 || size.height < 1 { size = NSSize(width: 400, height: 300) }
-        let style: NSWindow.StyleMask = resizable ? [.titled, .closable, .resizable] : [.titled, .closable]
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style,
-                              backing: .buffered, defer: false)
+
+        let window: NSWindow
+        switch kind {
+        case .standard(let resizable, _):
+            let style: NSWindow.StyleMask = resizable ? [.titled, .closable, .miniaturizable, .resizable] : [.titled, .closable]
+            window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)
+        case .floatingPanel:
+            let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
+                                styleMask: [.titled, .closable, .nonactivatingPanel, .utilityWindow],
+                                backing: .buffered, defer: false)
+            panel.isFloatingPanel = true
+            panel.becomesKeyOnlyIfNeeded = true
+            panel.hidesOnDeactivate = false
+            panel.level = .floating
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            window = panel
+        }
         window.contentViewController = controller
         window.setContentSize(size)
-        if resizable {
-            window.contentMinSize = NSSize(width: min(size.width, 320), height: min(size.height, 160))
+        if case .standard(true, _) = kind {
+            window.contentMinSize = NSSize(width: min(size.width, 520), height: min(size.height, 420))
         }
         window.title = title
         window.isReleasedWhenClosed = false
-        window.level = floating ? .floating : .normal
         window.identifier = NSUserInterfaceItemIdentifier(id)
         window.delegate = self
-        window.center()
         windows[id] = window
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+
+        if case .floatingPanel = kind {
+            placeTopRight(window)
+        } else if id == Self.mainID {
+            window.setFrameAutosaveName("squick-share main window")
+            if !window.setFrameUsingName("squick-share main window") { window.center() }
+        } else {
+            window.center()
+        }
+
+        if activate, case .standard = kind {
+            updateActivationPolicy(opening: true)
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        } else {
+            window.orderFrontRegardless()
+        }
+        if id == Self.mainID { onMainWindowChange?(.opened) }
+    }
+
+    /// Near the top-right corner of the active screen, where notifications appear.
+    private func placeTopRight(_ window: NSWindow) {
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return window.center() }
+        let visible = screen.visibleFrame
+        let size = window.frame.size
+        window.setFrameOrigin(NSPoint(x: visible.maxX - size.width - 16, y: visible.maxY - size.height - 16))
     }
 
     func close(id: String) {
@@ -47,43 +104,70 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
         windows[id] = nil
     }
 
+    func isOpen(_ id: String) -> Bool { windows[id] != nil }
+
+    /// Shows a Dock icon and the app's menus while a regular window is open, like other Mac apps;
+    /// otherwise the app lives in the menu bar only.
+    func updateActivationPolicy(opening: Bool = false) {
+        let hasStandardWindow = opening || windows.values.contains { !($0 is NSPanel) && $0.isVisible }
+        let policy: NSApplication.ActivationPolicy = alwaysShowsDockIcon || hasStandardWindow ? .regular : .accessory
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
+        }
+    }
+
+    // MARK: NSWindowDelegate (AppKit calls these on the main thread)
+
     nonisolated func windowWillClose(_ notification: Notification) {
-        // AppKit delivers window delegate calls on the main thread.
         MainActor.assumeIsolated {
             guard let window = notification.object as? NSWindow, let id = window.identifier?.rawValue else { return }
             windows[id] = nil
+            if id == Self.mainID { onMainWindowChange?(.closed) }
+            // After the window is gone, so it no longer counts as open.
+            DispatchQueue.main.async { [weak self] in self?.updateActivationPolicy() }
+        }
+    }
+
+    nonisolated func windowDidMiniaturize(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            if (notification.object as? NSWindow)?.identifier?.rawValue == Self.mainID { onMainWindowChange?(.minimized) }
+        }
+    }
+
+    nonisolated func windowDidDeminiaturize(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            if (notification.object as? NSWindow)?.identifier?.rawValue == Self.mainID { onMainWindowChange?(.restored) }
         }
     }
 
     // MARK: Specific windows
 
+    func showMain(model: AppModel) {
+        show(id: Self.mainID, title: "squick-share", kind: .standard(resizable: true, size: NSSize(width: 660, height: 600))) {
+            MainWindowView()
+                .environmentObject(model)
+                .environmentObject(model.settings)
+        }
+    }
+
+    /// The request prompt for when notifications can't be shown. It floats but never takes focus,
+    /// so a keystroke meant for another app can't accept a transfer.
     func showIncomingRequest(_ request: IncomingTransferRequest, model: AppModel) {
-        show(id: "request-\(request.id)", title: "squick-share", floating: true) {
+        show(id: "request-\(request.id)", title: "squick-share", kind: .floatingPanel, activate: false) {
             IncomingRequestView(request: request).environmentObject(model)
                 .frame(width: 380)
         }
     }
 
-    func showSend(model: AppModel) {
-        // The device list grows while the window is open, so the window has a fixed size and scrolls.
-        show(id: "send", title: "Send with squick-share", resizable: true) {
-            ScrollView {
-                SendPanel(showsClose: false).environmentObject(model)
-                    .frame(width: 380)
-                    .padding(16)
-            }
-            .frame(minWidth: 412, idealWidth: 412, minHeight: 300, idealHeight: 460)
-        }
-    }
-
     func showSettings(model: AppModel) {
-        show(id: "settings", title: "squick-share Settings") {
+        show(id: Self.settingsID, title: "squick-share Settings", kind: .standard(resizable: false, size: nil)) {
             SettingsView().environmentObject(model).environmentObject(model.settings)
         }
     }
 
+    /// Received text appears without taking focus from what the user is doing.
     func showReceivedText(text: String, kind: TextKind, from device: String) {
-        show(id: "text-\(UUID().uuidString)", title: "Text from \(device)", resizable: true) {
+        show(id: "text-\(UUID().uuidString)", title: "Text from \(device)", kind: .floatingPanel, activate: false) {
             ReceivedTextView(text: text, kind: kind)
         }
     }

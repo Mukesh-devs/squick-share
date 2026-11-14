@@ -9,8 +9,8 @@ enum Visibility: String, CaseIterable, Identifiable, Codable {
     var label: String {
         switch self {
         case .everyone: "Everyone"
-        case .hidden: "Hidden"
-        case .temporary: "Visible for 10 minutes"
+        case .hidden: "No One"
+        case .temporary: "Everyone for 10 Minutes"
         }
     }
 }
@@ -39,6 +39,10 @@ final class AppSettings: ObservableObject {
     @Published var interface: InterfaceRestriction { didSet { defaults.set(interface.rawValue, forKey: "interface") } }
     @Published var verboseLogging: Bool { didSet { defaults.set(verboseLogging, forKey: "verboseLogging") } }
     @Published var protocolOptions: ProtocolOptions { didSet { save(protocolOptions, "protocolOptions") } }
+    /// Show the icon in the menu bar. When off, the app keeps a Dock icon so it stays reachable.
+    @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: "showInMenuBar") } }
+    /// Listen for phones that start Quick Share over Bluetooth, and announce this Mac to them at once.
+    @Published var useBluetooth: Bool { didSet { defaults.set(useBluetooth, forKey: "useBluetooth") } }
     @Published private(set) var downloadFolder: URL
     @Published private(set) var launchAtLogin = false
 
@@ -55,6 +59,8 @@ final class AppSettings: ObservableObject {
         verboseLogging = defaults.bool(forKey: "verboseLogging")
         trustedDevices = Self.load([TrustedDevice].self, "trustedDevices") ?? []
         protocolOptions = Self.load(ProtocolOptions.self, "protocolOptions") ?? ProtocolOptions()
+        showInMenuBar = defaults.object(forKey: "showInMenuBar") as? Bool ?? true
+        useBluetooth = defaults.object(forKey: "useBluetooth") as? Bool ?? true
         downloadFolder = Self.realDownloadsFolder
         restoreDownloadFolder()
         refreshLaunchAtLogin()
@@ -125,6 +131,8 @@ final class AppSettings: ObservableObject {
     }
 
     // MARK: Launch at login
+
+    static var isLaunchAtLoginEnabled: Bool { SMAppService.mainApp.status == .enabled }
 
     func refreshLaunchAtLogin() {
         // Only publish real changes. Settings calls this when its General tab appears; publishing an

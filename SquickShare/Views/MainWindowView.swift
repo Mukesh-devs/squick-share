@@ -370,13 +370,13 @@ private struct VisibilityCard: View {
                     }
                     .labelsHidden()
                     .fixedSize()
+                    Button("Announce Again") { model.announceAgain() }
+                        .fixedSize()
+                        .disabled(settings.visibility == .hidden)
+                        .help("Tell nearby phones about this Mac now (useful if a phone just reconnected to Wi-Fi)")
                 }
-                .layoutPriority(1)
             }
-            Spacer(minLength: 8)
-            Button("Announce Again") { model.announceAgain() }
-                .disabled(settings.visibility == .hidden)
-                .help("Tell nearby phones about this Mac now (useful if a phone just reconnected to Wi-Fi)")
+            Spacer(minLength: 0)
         }
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.04)))

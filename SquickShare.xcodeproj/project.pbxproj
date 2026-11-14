@@ -8,10 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		1C8180DAA439549ED650AA23 /* WindowCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D3068982DE81F0340570DC /* WindowCoordinator.swift */; };
-		5A1C0F3E9B2D4E6F7A8B9C0D /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2D1E4F0C3A5B7E8D9F0A1B /* StatusItemController.swift */; };
 		1E4434C21BF9CEB97C96EB1B /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B6A2DD4D88070E5E8FD9DD6 /* MenuBarIcon.swift */; };
 		1F6EB5B0A497365AFD6F6955 /* SquickShareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1C1B59E86FEE5432EB5148 /* SquickShareApp.swift */; };
-		26C1EA57F54F129A3D0951F5 /* DeviceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F9A23DC9F7CD676C333BC9 /* DeviceViews.swift */; };
 		36350E14355F4D91FDC34CD6 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 219F88AD8923297688AD349E /* NotificationManager.swift */; };
 		3770426865F1A520A531A346 /* TransferViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21EEF815A1A4DFFC100B4BD /* TransferViews.swift */; };
 		41C1DA7ABF26297A2FFC28E9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E8538D4949E99BB84AA8FB89 /* Assets.xcassets */; };
@@ -19,11 +17,13 @@
 		63841E0F6423EF57CEF7C8B9 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A6D1733978CDEE1ED566FB /* AppSettings.swift */; };
 		84885805985A572D24F7061D /* DebugHooks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28367CCE0E32CBAFB77F245 /* DebugHooks.swift */; };
 		8804361600CCD7E3B63CA3D9 /* QuickShareCore in Frameworks */ = {isa = PBXBuildFile; productRef = B84DA1E008E7240886B9CF82 /* QuickShareCore */; };
-		B77485E507E4EE211A6AB1A4 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC778C4C543A422B666075D6 /* MainWindowView.swift */; };
+		8BF25FF9BA558E9D9E8A215D /* DeviceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801AC89ADBD9DB3C1BE6DC55 /* DeviceViews.swift */; };
 		B8D9548A4BFB27D3C29A2B2C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27C6FA09F1BC67C352D71A3 /* SettingsView.swift */; };
 		C157B9AEB2D5A75834FE41CE /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6637C4577D1081F2E6542E1E /* ShareExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CDB5BC63CA2B484BF7D3210E /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD356E1C3CE2E84867BC5BA3 /* ShareViewController.swift */; };
+		D294903D3D314CB9568FB29D /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1031C6C3A27982C2B6BD5AF9 /* StatusItemController.swift */; };
 		E7B186E8DAD45CF9E69DAFB5 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7342F0D13BB951F1BDF8A1A2 /* AppModel.swift */; };
+		EB39483B88D9F640441D3AE0 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7707E48432373F442E9FA6C0 /* MainWindowView.swift */; };
 		F9E2DCC9A7BD816730FFAF79 /* TransferModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9B13CC257B2C2E5418683D /* TransferModels.swift */; };
 /* End PBXBuildFile section */
 
@@ -53,9 +53,8 @@
 
 /* Begin PBXFileReference section */
 		05A6D1733978CDEE1ED566FB /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		11F9A23DC9F7CD676C333BC9 /* DeviceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceViews.swift; sourceTree = "<group>"; };
+		1031C6C3A27982C2B6BD5AF9 /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
 		14D3068982DE81F0340570DC /* WindowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCoordinator.swift; sourceTree = "<group>"; };
-		6B2D1E4F0C3A5B7E8D9F0A1B /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
 		16C6E42964663E785924539A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1B6A2DD4D88070E5E8FD9DD6 /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		1B94746468F6A4CFA14FCFDE /* QuickShareCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = QuickShareCore; path = Packages/QuickShareCore; sourceTree = SOURCE_ROOT; };
@@ -63,12 +62,13 @@
 		5E850F5D5EBB3FBC0CAD35E5 /* SquickShare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SquickShare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6637C4577D1081F2E6542E1E /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7342F0D13BB951F1BDF8A1A2 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		7707E48432373F442E9FA6C0 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
+		801AC89ADBD9DB3C1BE6DC55 /* DeviceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceViews.swift; sourceTree = "<group>"; };
 		8D2C0FBC768D1CA9DE12D64E /* SquickShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SquickShare.entitlements; sourceTree = "<group>"; };
 		9B9B13CC257B2C2E5418683D /* TransferModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferModels.swift; sourceTree = "<group>"; };
 		A5D63438C14244CE21809CC2 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		BF1C1B59E86FEE5432EB5148 /* SquickShareApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquickShareApp.swift; sourceTree = "<group>"; };
 		D21EEF815A1A4DFFC100B4BD /* TransferViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferViews.swift; sourceTree = "<group>"; };
-		DC778C4C543A422B666075D6 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
 		DD356E1C3CE2E84867BC5BA3 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		E28367CCE0E32CBAFB77F245 /* DebugHooks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugHooks.swift; sourceTree = "<group>"; };
 		E8538D4949E99BB84AA8FB89 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -117,9 +117,9 @@
 		3CC37249521BB98583A6569C /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				801AC89ADBD9DB3C1BE6DC55 /* DeviceViews.swift */,
+				7707E48432373F442E9FA6C0 /* MainWindowView.swift */,
 				1B6A2DD4D88070E5E8FD9DD6 /* MenuBarIcon.swift */,
-				DC778C4C543A422B666075D6 /* MainWindowView.swift */,
-				11F9A23DC9F7CD676C333BC9 /* DeviceViews.swift */,
 				F27C6FA09F1BC67C352D71A3 /* SettingsView.swift */,
 				D21EEF815A1A4DFFC100B4BD /* TransferViews.swift */,
 			);
@@ -150,7 +150,7 @@
 			children = (
 				E28367CCE0E32CBAFB77F245 /* DebugHooks.swift */,
 				219F88AD8923297688AD349E /* NotificationManager.swift */,
-				6B2D1E4F0C3A5B7E8D9F0A1B /* StatusItemController.swift */,
+				1031C6C3A27982C2B6BD5AF9 /* StatusItemController.swift */,
 				14D3068982DE81F0340570DC /* WindowCoordinator.swift */,
 			);
 			path = Support;
@@ -285,16 +285,16 @@
 				E7B186E8DAD45CF9E69DAFB5 /* AppModel.swift in Sources */,
 				63841E0F6423EF57CEF7C8B9 /* AppSettings.swift in Sources */,
 				84885805985A572D24F7061D /* DebugHooks.swift in Sources */,
+				8BF25FF9BA558E9D9E8A215D /* DeviceViews.swift in Sources */,
 				43609D4679D942BCDFCEEFF9 /* DiagnosticsLog.swift in Sources */,
+				EB39483B88D9F640441D3AE0 /* MainWindowView.swift in Sources */,
 				1E4434C21BF9CEB97C96EB1B /* MenuBarIcon.swift in Sources */,
 				36350E14355F4D91FDC34CD6 /* NotificationManager.swift in Sources */,
-				B77485E507E4EE211A6AB1A4 /* MainWindowView.swift in Sources */,
-				26C1EA57F54F129A3D0951F5 /* DeviceViews.swift in Sources */,
 				B8D9548A4BFB27D3C29A2B2C /* SettingsView.swift in Sources */,
 				1F6EB5B0A497365AFD6F6955 /* SquickShareApp.swift in Sources */,
+				D294903D3D314CB9568FB29D /* StatusItemController.swift in Sources */,
 				F9E2DCC9A7BD816730FFAF79 /* TransferModels.swift in Sources */,
 				3770426865F1A520A531A346 /* TransferViews.swift in Sources */,
-				5A1C0F3E9B2D4E6F7A8B9C0D /* StatusItemController.swift in Sources */,
 				1C8180DAA439549ED650AA23 /* WindowCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

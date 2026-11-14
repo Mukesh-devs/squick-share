@@ -152,8 +152,12 @@ jobs:
           brew install xcodegen >/dev/null 2>&1 || exit 0
           cp -R SquickShare.xcodeproj /tmp/committed.xcodeproj
           xcodegen generate --quiet
-          git diff --stat -- SquickShare.xcodeproj
-          git diff -- SquickShare.xcodeproj/project.pbxproj | head -n 200
+          if git diff --quiet -- SquickShare.xcodeproj; then
+            echo "Project file matches XcodeGen output."
+          else
+            echo "::warning::SquickShare.xcodeproj differs from 'xcodegen generate' output"
+            git diff -- SquickShare.xcodeproj/project.pbxproj | head -n 200
+          fi
           rm -rf SquickShare.xcodeproj && cp -R /tmp/committed.xcodeproj SquickShare.xcodeproj
 
       - name: Upload snapshots and logs

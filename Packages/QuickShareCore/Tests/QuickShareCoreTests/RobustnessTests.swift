@@ -28,13 +28,9 @@ final class RobustnessTests: XCTestCase {
         XCTAssertTrue(writer.isOpen)
         XCTAssertTrue(FileManager.default.fileExists(atPath: writer.tempURL.path))
 
-        writer.discard()
-        // Discarding runs after pending writes on the writer's queue.
-        for _ in 0..<50 where FileManager.default.fileExists(atPath: writer.tempURL.path) {
-            try await Task.sleep(nanoseconds: 20_000_000)
-        }
+        await writer.discard()
         XCTAssertFalse(FileManager.default.fileExists(atPath: writer.tempURL.path))
-        writer.discard()   // a second call is harmless
+        await writer.discard()   // a second call is harmless
     }
 
     /// An empty file still produces an (empty) file at its final name.

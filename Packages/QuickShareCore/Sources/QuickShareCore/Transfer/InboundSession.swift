@@ -375,7 +375,7 @@ actor InboundSession {
             try? await transport.send(SharingFrames.cancel())
             try? await transport.send(OfflineFrames.disconnection())
         }
-        for writer in writers.values { writer.discard() }
+        for writer in writers.values { await writer.discard() }
         writers.removeAll()
         // Remove folders we created that are still empty, deepest first.
         for folder in createdFolders.reversed() {

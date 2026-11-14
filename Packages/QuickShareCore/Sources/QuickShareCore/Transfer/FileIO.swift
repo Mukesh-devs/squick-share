@@ -16,10 +16,6 @@ final class BlockingIO: @unchecked Sendable {
         }
     }
 
-    /// Runs `work` after everything already queued, without waiting for it.
-    func enqueue(_ work: @escaping @Sendable () -> Void) {
-        queue.async(execute: work)
-    }
 }
 
 /// Streams one received file into a temporary file inside its destination folder,
@@ -70,7 +66,7 @@ final class IncomingFileWriter: @unchecked Sendable {
         }
         if finished {
             // Discarded while the file was being created.
-            io.enqueue { try? opened.close(); try? FileManager.default.removeItem(at: temp) }
+            _ = try? await io.run { try? opened.close(); try? FileManager.default.removeItem(at: temp) }
             throw TransferError.cancelledByUser
         }
         handle = opened
@@ -119,14 +115,15 @@ final class IncomingFileWriter: @unchecked Sendable {
         return url
     }
 
-    /// Deletes the temporary file, after any write already in progress. Safe to call more than once.
-    func discard() {
+    /// Deletes the temporary file once any write already in progress is done, and returns after that,
+    /// so the caller can then remove folders that became empty. Safe to call more than once.
+    func discard() async {
         guard !finished else { return }
         finished = true
         guard let handle else { return }
         self.handle = nil
         let temp = tempURL
-        io.enqueue {
+        _ = try? await io.run {
             try? handle.close()
             try? FileManager.default.removeItem(at: temp)
         }

@@ -22,6 +22,16 @@ struct SquickShareApp: App {
                 Button("Send Files…") { appDelegate.model.chooseFiles() }
                     .keyboardShortcut("o")
             }
+            // View menu: jump to a page of the main window, like the sidebar.
+            CommandGroup(before: .sidebar) {
+                Button("Send") { appDelegate.model.showMainWindow(section: .send) }
+                    .keyboardShortcut("1")
+                Button("Receive") { appDelegate.model.showMainWindow(section: .receive) }
+                    .keyboardShortcut("2")
+                Button("History") { appDelegate.model.showMainWindow(section: .history) }
+                    .keyboardShortcut("3")
+                Divider()
+            }
             CommandGroup(before: .windowList) {
                 Button("squick-share") { appDelegate.model.showMainWindow() }
                     .keyboardShortcut("0")

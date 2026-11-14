@@ -7,21 +7,18 @@ enum SettingsTab: Hashable, CaseIterable {
 
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
+    /// False when the page header shows the tab picker instead.
+    var showsTabPicker = true
 
     // A segmented control instead of TabView: on macOS 26, SwiftUI's TabView could loop forever
     // when switching back to the General tab, freezing the app.
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Settings section", selection: $model.settingsTab) {
-                Label("General", systemImage: "gearshape").tag(SettingsTab.general)
-                Label("Trusted Devices", systemImage: "checkmark.shield").tag(SettingsTab.trustedDevices)
-                Label("Diagnostics", systemImage: "stethoscope").tag(SettingsTab.diagnostics)
+            if showsTabPicker {
+                SettingsTabPicker()
+                    .padding(.top, 14)
+                    .padding(.bottom, 6)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .padding(.top, 14)
-            .padding(.bottom, 6)
             Group {
                 switch model.settingsTab {
                 case .general: GeneralSettings()
@@ -29,9 +26,25 @@ struct SettingsView: View {
                 case .diagnostics: DiagnosticsSettings()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: 680, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 500, height: 540)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// General, Trusted Devices, Diagnostics.
+struct SettingsTabPicker: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        Picker("Settings section", selection: $model.settingsTab) {
+            Label("General", systemImage: "gearshape").tag(SettingsTab.general)
+            Label("Trusted Devices", systemImage: "checkmark.shield").tag(SettingsTab.trustedDevices)
+            Label("Diagnostics", systemImage: "stethoscope").tag(SettingsTab.diagnostics)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
     }
 }
 

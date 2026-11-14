@@ -2,58 +2,32 @@ import QuickShareCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The main window, modelled on Finder's AirDrop window: nearby devices you can click or drop files on,
-/// what is happening now, recent transfers, and who can see this Mac.
+/// The main window: a sidebar with Send, Receive, History and Settings, and the chosen page.
+///
+/// A plain sidebar list next to the page, rather than NavigationSplitView: the window keeps one fixed
+/// layout and never resizes itself, which keeps it clear of the SwiftUI window-resizing loops seen on
+/// macOS 26 (see WindowCoordinator).
 struct MainWindowView: View {
     @EnvironmentObject private var model: AppModel
-    @EnvironmentObject private var settings: AppSettings
     @State private var dropTargeted = false
     @State private var composingText = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    banners
-                    if !model.pendingRequests.isEmpty {
-                        WindowSection(title: "Requests") {
-                            ForEach(model.pendingRequests) { request in
-                                IncomingRequestView(request: request, inline: true)
-                                    .padding(16)
-                                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(Color.accentColor.opacity(0.08)))
-                                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .strokeBorder(Color.accentColor.opacity(0.25)))
-                            }
-                        }
-                    }
-                    NearbySection(composingText: $composingText)
-                    if !model.transfers.isEmpty {
-                        WindowSection(title: "In Progress") {
-                            ForEach(model.transfers) { TransferRow(transfer: $0) }
-                        }
-                    }
-                    if !model.recents.isEmpty {
-                        WindowSection(title: "Recent", trailing: AnyView(
-                            Button("Clear") { model.clearRecents() }
-                                .buttonStyle(.link)
-                                .accessibilityLabel("Clear recent transfers"))) {
-                            GroupedList(items: Array(model.recents.prefix(8))) { RecentRow(recent: $0) }
-                        }
-                    }
-                }
-                .padding(20)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+        HStack(spacing: 0) {
+            Sidebar()
+                .frame(width: 200)
             Divider()
-            StatusBar()
+            page
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
         }
-        .frame(minWidth: 520, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(minWidth: 700, maxWidth: .infinity, minHeight: 480, maxHeight: .infinity)
+        // Files dropped anywhere in the window go to the send list.
         .onDrop(of: DropLoader.types, isTargeted: $dropTargeted) { providers in
             DropLoader.load(providers) { files, texts in
                 if !files.isEmpty { model.addSendFiles(files) }
                 texts.forEach { model.addSendText($0) }
+                if model.section != .send { model.section = .send }
             }
         }
         .overlay {
@@ -69,29 +43,193 @@ struct MainWindowView: View {
         }
     }
 
-    @ViewBuilder private var banners: some View {
-        if model.localNetworkDenied {
-            Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
-                   text: "Local network access is off, so squick-share can't find or be found by nearby devices.") {
-                Button("Open System Settings") { model.openLocalNetworkSettings() }
-            }
-        } else if !model.hasNetwork {
-            Banner(symbol: "wifi.slash", tint: .orange,
-                   text: "This Mac isn't connected to a network. Both devices must be on the same Wi-Fi network.") { EmptyView() }
-        } else if case .failed(let message) = model.receiverStatus {
-            Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
-                   text: "This Mac can't be discovered right now (\(message)). squick-share keeps retrying.") { EmptyView() }
+    @ViewBuilder private var page: some View {
+        switch model.section {
+        case .send: SendPage(composingText: $composingText)
+        case .receive: ReceivePage()
+        case .history: HistoryPage()
+        case .settings: SettingsPage()
         }
-        if let notice = model.notice {
-            Banner(symbol: "info.circle.fill", tint: .blue, text: notice) {
-                Button("OK") { model.notice = nil }
+    }
+}
+
+// MARK: - Sidebar
+
+private struct Sidebar: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            List(selection: selection) {
+                Section {
+                    ForEach([MainSection.send, .receive, .history]) { row($0) }
+                }
+                Section {
+                    row(.settings)
+                }
+            }
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            Divider()
+            SidebarStatus()
+        }
+        .background(SidebarBackground())
+    }
+
+    private func row(_ section: MainSection) -> some View {
+        Label(section.title, systemImage: section.symbol)
+            .badge(model.badge(for: section))
+            .tag(section)
+            .accessibilityHint(section == .receive && !model.pendingRequests.isEmpty ? "A request is waiting" : "")
+    }
+
+    /// The list needs an optional selection; clicking empty space must not deselect the page.
+    private var selection: Binding<MainSection?> {
+        Binding(get: { model.section },
+                set: { new in if let new, new != model.section { model.section = new } })
+    }
+}
+
+/// Whether this Mac can be found, at the bottom of the sidebar. Clicking it opens Receive.
+private struct SidebarStatus: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        Button { model.section = .receive } label: {
+            HStack(alignment: .top, spacing: 8) {
+                StatusDot(color: model.statusColor).padding(.top, 5)
+                Text(model.statusLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Who can see this Mac")
+        .accessibilityLabel("Status: \(model.statusLine)")
+    }
+}
+
+/// The translucent sidebar material Finder and System Settings use.
+private struct SidebarBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+}
+
+// MARK: - Page building blocks
+
+/// A scrolling page with standard margins.
+private struct Page<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                content()
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// A page's title, a line about what it is for, and its main actions.
+struct PageHeader<Actions: View>: View {
+    let title: String
+    let subtitle: String
+    @ViewBuilder let actions: () -> Actions
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.title.weight(.semibold))
+                Text(subtitle).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 12)
+            actions()
+        }
+    }
+}
+
+extension PageHeader where Actions == EmptyView {
+    init(title: String, subtitle: String) {
+        self.init(title: title, subtitle: subtitle) { EmptyView() }
+    }
+}
+
+/// Problems that stop discovery, and one-off notices.
+private struct StatusBanners: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if model.localNetworkDenied {
+                Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
+                       text: "Local network access is off, so squick-share can't find or be found by nearby devices.") {
+                    Button("Open System Settings") { model.openLocalNetworkSettings() }
+                }
+            } else if !model.hasNetwork {
+                Banner(symbol: "wifi.slash", tint: .orange,
+                       text: "This Mac isn't connected to a network. Both devices must be on the same Wi-Fi network.") { EmptyView() }
+            } else if case .failed(let message) = model.receiverStatus {
+                Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
+                       text: "This Mac can't be discovered right now (\(message)). squick-share keeps retrying.") { EmptyView() }
+            }
+            if let notice = model.notice {
+                Banner(symbol: "info.circle.fill", tint: .blue, text: notice) {
+                    Button("OK") { model.notice = nil }
+                }
             }
         }
     }
 }
 
-/// "Nearby": the send list, then the devices, or a searching state with tips.
-private struct NearbySection: View {
+/// A request waiting for an answer, shown on pages other than Receive so it is never missed.
+private struct RequestStrip: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(model.pendingRequests) { request in
+                HStack(spacing: 10) {
+                    Image(systemName: Format.deviceSymbol(request.device.type))
+                        .font(.title3)
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(request.device.name) wants to share").font(.callout.weight(.semibold)).lineLimit(1)
+                        Text("\(Format.countSummary(files: request.files.count, texts: request.texts.count, bytes: request.totalBytes)) · PIN \(request.pin)")
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Button("Details") { model.section = .receive }
+                        .buttonStyle(.link)
+                    Button("Decline") { model.decline(request) }
+                    Button("Accept") { model.accept(request, trust: false) }
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.accentColor.opacity(0.1)))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.accentColor.opacity(0.25)))
+                .accessibilityElement(children: .contain)
+            }
+        }
+    }
+}
+
+// MARK: - Send
+
+private struct SendPage: View {
     @EnvironmentObject private var model: AppModel
     @Binding var composingText: Bool
     @State private var showGuide = false
@@ -99,49 +237,229 @@ private struct NearbySection: View {
     private let columns = [GridItem(.adaptive(minimum: 118, maximum: 150), spacing: 12, alignment: .top)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 8) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Nearby").font(.title2.weight(.semibold))
-                    Text(subtitle).font(.callout).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 12)
+        let outgoing = model.transfers(.outgoing)
+        Page {
+            PageHeader(title: "Send", subtitle: subtitle) {
                 Button { model.chooseFiles() } label: {
                     Label("Choose Files…", systemImage: "doc.badge.plus")
                 }
-                .help("Pick files or folders to send")
+                .help("Pick files or folders to send (⌘O)")
                 Button { composingText = true } label: {
                     Label("Send Text…", systemImage: "text.bubble")
                 }
                 .help("Send a link or a note")
             }
-
+            if model.hasStatusBanner { StatusBanners() }
+            if !model.pendingRequests.isEmpty { RequestStrip() }
             if !model.pendingSendItems.isEmpty { SendTray() }
 
-            if model.localNetworkDenied {
-                EmptyStateView(symbol: "network.slash", title: "Can't look for devices",
-                               message: "Allow squick-share to find devices on your local network in System Settings.")
-            } else if let qr = model.qrSession {
-                QRCodePanel(session: qr)
-            } else if model.visibleDevices.isEmpty {
-                SearchingView()
-            } else {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                    ForEach(model.visibleDevices) { DeviceTile(device: $0) }
+            WindowSection(title: "Nearby Devices") {
+                if model.localNetworkDenied {
+                    EmptyStateView(symbol: "network.slash", title: "Can't look for devices",
+                                   message: "Allow squick-share to find devices on your local network in System Settings.")
+                } else if let qr = model.qrSession {
+                    QRCodePanel(session: qr)
+                } else if model.visibleDevices.isEmpty {
+                    SearchingView()
+                } else {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                        ForEach(model.visibleDevices) { DeviceTile(device: $0) }
+                    }
+                    DisclosureGroup("Phone not listed?", isExpanded: $showGuide) {
+                        PhoneGuide().padding(.top, 8)
+                    }
+                    .font(.callout)
                 }
-                DisclosureGroup("Phone not listed?", isExpanded: $showGuide) {
-                    PhoneGuide().padding(.top, 8)
+            }
+
+            if !outgoing.isEmpty {
+                WindowSection(title: "Sending") {
+                    ForEach(outgoing) { TransferRow(transfer: $0) }
                 }
-                .font(.callout)
             }
         }
     }
 
     private var subtitle: String {
         if model.pendingSendItems.isEmpty {
-            return "Drop files on a device to send them, or click a device to choose files."
+            return "Drop files on a device, or click a device to choose files."
         }
         return "Click a device to send \(model.sendSummary)."
+    }
+}
+
+// MARK: - Receive
+
+private struct ReceivePage: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        let incoming = model.transfers(.incoming)
+        Page {
+            PageHeader(title: "Receive", subtitle: "Android phones send to this Mac with Quick Share.")
+            if model.hasStatusBanner { StatusBanners() }
+            VisibilityCard()
+
+            if !model.pendingRequests.isEmpty {
+                WindowSection(title: "Requests") {
+                    ForEach(model.pendingRequests) { request in
+                        IncomingRequestView(request: request, inline: true)
+                            .padding(16)
+                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.08)))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Color.accentColor.opacity(0.25)))
+                    }
+                }
+            }
+
+            if !incoming.isEmpty {
+                WindowSection(title: "Receiving") {
+                    ForEach(incoming) { TransferRow(transfer: $0) }
+                }
+            }
+
+            WindowSection(title: "Saved To") {
+                SaveLocationRow()
+            }
+
+            WindowSection(title: "How to Send from a Phone") {
+                VStack(alignment: .leading, spacing: 8) {
+                    GuideStep(number: 1, text: "On the phone, share a photo, video or file and choose **Quick Share**.")
+                    GuideStep(number: 2, text: "Tap **\(model.identity.name)**. Both devices must be on the same Wi-Fi network.")
+                    GuideStep(number: 3, text: "Check that both show the same PIN, then click **Accept** here or in the notification.")
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
+            }
+        }
+    }
+}
+
+/// Who can see this Mac, and the control to change it.
+private struct VisibilityCard: View {
+    @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(model.isDiscoverable
+                          ? AnyShapeStyle(LinearGradient(colors: [Color.accentColor.opacity(0.75), Color.accentColor],
+                                                         startPoint: .top, endPoint: .bottom))
+                          : AnyShapeStyle(Color.secondary.opacity(0.35)))
+                    .frame(width: 56, height: 56)
+                Image(systemName: settings.visibility == .hidden ? "antenna.radiowaves.left.and.right.slash" : "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(model.statusLine).font(.headline)
+                    Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: 8) {
+                    Text("Allow me to be discovered by:").font(.callout)
+                    Picker("Allow me to be discovered by", selection: $settings.visibility) {
+                        ForEach(Visibility.allCases) { Text($0.label).tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+            Spacer(minLength: 8)
+            Button("Announce Again") { model.announceAgain() }
+                .disabled(settings.visibility == .hidden)
+                .help("Tell nearby phones about this Mac now (useful if a phone just reconnected to Wi-Fi)")
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.04)))
+    }
+
+    private var detail: String {
+        if model.localNetworkDenied || !model.hasNetwork { return "Phones can't see this Mac until this is fixed." }
+        switch settings.visibility {
+        case .everyone: return "Nearby phones on this Wi-Fi network can send to this Mac."
+        case .temporary: return "Nearby phones can send to this Mac until the timer ends."
+        case .hidden: return "Phones can't see this Mac. Choose Everyone to receive files."
+        }
+    }
+}
+
+private struct SaveLocationRow: View {
+    @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: settings.downloadFolder.path))
+                .resizable()
+                .frame(width: 28, height: 28)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(settings.downloadFolder.lastPathComponent).font(.callout.weight(.medium))
+                Text("Received files are never opened automatically.").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Show in Finder") { model.openDownloadFolder() }
+            Button("Change…") { model.showSettings(tab: .general) }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
+    }
+}
+
+// MARK: - History
+
+private struct HistoryPage: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        Page {
+            PageHeader(title: "History", subtitle: "Your last 30 transfers. Click the magnifier to show received files in Finder.") {
+                if !model.recents.isEmpty {
+                    Button("Clear History") { model.clearRecents() }
+                }
+            }
+            if model.notice != nil { StatusBanners() }
+            if !model.pendingRequests.isEmpty { RequestStrip() }
+            if model.recents.isEmpty {
+                EmptyStateView(symbol: "clock", title: "No transfers yet",
+                               message: "Files and links you send or receive appear here.")
+            } else {
+                GroupedList(items: model.recents) { RecentRow(recent: $0) }
+                Button("Open Downloads Folder") { model.openDownloadFolder() }
+            }
+        }
+    }
+}
+
+// MARK: - Settings
+
+private struct SettingsPage: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            PageHeader(title: "Settings", subtitle: "How this Mac appears to others, where files go, and more.") {
+                SettingsTabPicker()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 4)
+            SettingsView(showsTabPicker: false)
+        }
+    }
+}
+
+extension AppModel {
+    /// Whether `StatusBanners` has something to show.
+    var hasStatusBanner: Bool {
+        if case .failed = receiverStatus { return true }
+        return localNetworkDenied || !hasNetwork || notice != nil
     }
 }
 
@@ -244,33 +562,6 @@ struct EmptyStateView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
-    }
-}
-
-/// The bar at the bottom: whether this Mac can be found, and by whom.
-private struct StatusBar: View {
-    @EnvironmentObject private var model: AppModel
-    @EnvironmentObject private var settings: AppSettings
-
-    var body: some View {
-        HStack(spacing: 8) {
-            StatusDot(color: model.statusColor)
-            Text(model.statusLine).font(.callout).lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: 12)
-            Text("Allow me to be discovered by:").font(.callout).foregroundStyle(.secondary).lineLimit(1)
-            Picker("Allow me to be discovered by", selection: $settings.visibility) {
-                ForEach(Visibility.allCases) { Text($0.label).tag($0) }
-            }
-            .labelsHidden()
-            .fixedSize()
-            Button { model.showSettings() } label: { Image(systemName: "gearshape") }
-                .buttonStyle(.borderless)
-                .help("Settings")
-                .accessibilityLabel("Open settings")
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.bar)
     }
 }
 

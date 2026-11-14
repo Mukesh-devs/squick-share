@@ -4,6 +4,30 @@ import Network
 import QuickShareCore
 import UniformTypeIdentifiers
 
+/// The pages of the main window, listed in its sidebar.
+enum MainSection: String, CaseIterable, Identifiable {
+    case send, receive, history, settings
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .send: "Send"
+        case .receive: "Receive"
+        case .history: "History"
+        case .settings: "Settings"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .send: "paperplane"
+        case .receive: "tray.and.arrow.down"
+        case .history: "clock.arrow.circlepath"
+        case .settings: "gearshape"
+        }
+    }
+}
+
 /// Central app state: owns the receiver, browser and transfers, and drives the UI.
 @MainActor
 final class AppModel: ObservableObject {
@@ -30,7 +54,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var qrSession: QRCodeSession?
     @Published private(set) var isMainWindowOpen = false
     @Published var notice: String?
-    /// The selected Settings tab (kept here so it survives closing and reopening the window).
+    /// The main window's page (kept here so it survives closing and reopening the window).
+    @Published var section: MainSection = .send
+    /// The selected Settings tab.
     @Published var settingsTab: SettingsTab = .general
     /// Updated once a second, only while the "Visible for 10 minutes" countdown runs.
     @Published private(set) var now = Date()
@@ -285,6 +311,20 @@ final class AppModel: ObservableObject {
     /// Transfers still running (not completed or failed).
     var runningTransfers: [ActiveTransfer] { transfers.filter { !$0.isFinished } }
 
+    /// Transfers shown on the Send page (outgoing) and the Receive page (incoming).
+    func transfers(_ direction: TransferDirection) -> [ActiveTransfer] {
+        transfers.filter { $0.direction == direction }
+    }
+
+    /// The number shown next to a page in the sidebar: things waiting or running there.
+    func badge(for section: MainSection) -> Int {
+        switch section {
+        case .send: return runningTransfers.filter { $0.direction == .outgoing }.count
+        case .receive: return pendingRequests.count + runningTransfers.filter { $0.direction == .incoming }.count
+        case .history, .settings: return 0
+        }
+    }
+
     /// Nearby devices that can be listed (hidden devices are only reachable by QR code).
     var visibleDevices: [DiscoveredDevice] { nearbyDevices.filter { $0.name != nil } }
 
@@ -501,13 +541,13 @@ final class AppModel: ObservableObject {
 
     private func handleNotificationAction(_ action: NotificationManager.Action, _ id: UUID) {
         guard let request = pendingRequests.first(where: { $0.id == id }) else {
-            if action == .open { showMainWindow() }
+            if action == .open { showMainWindow(section: .receive) }
             return
         }
         switch action {
         case .accept: accept(request, trust: false)
         case .decline: decline(request)
-        case .open: showMainWindow()
+        case .open: showMainWindow(section: .receive)
         }
     }
 
@@ -549,13 +589,15 @@ final class AppModel: ObservableObject {
 
     // MARK: Windows
 
-    func showMainWindow() {
+    /// Opens the main window, on `section` if given (otherwise on the page it last showed).
+    func showMainWindow(section: MainSection? = nil) {
+        if let section, self.section != section { self.section = section }
         windows.showMain(model: self)
     }
 
     func showSettings(tab: SettingsTab? = nil) {
-        if let tab { settingsTab = tab }
-        windows.showSettings(model: self)
+        if let tab, settingsTab != tab { settingsTab = tab }
+        showMainWindow(section: .settings)
     }
 
     private func mainWindowChanged(_ event: WindowCoordinator.MainWindowEvent) {
@@ -571,7 +613,7 @@ final class AppModel: ObservableObject {
     /// Lets the user pick files in a sheet on the main window, then sends them to `device`,
     /// or adds them to the send list when no device is given.
     func chooseFiles(for device: DiscoveredDevice? = nil) {
-        showMainWindow()
+        showMainWindow(section: .send)
         guard let window = windows.mainWindow else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -759,7 +801,7 @@ final class AppModel: ObservableObject {
             }
         }
         if !files.isEmpty { addSendFiles(files) }
-        if !pendingSendItems.isEmpty { showMainWindow() }
+        if !pendingSendItems.isEmpty { showMainWindow(section: .send) }
     }
 
     // MARK: Diagnostics

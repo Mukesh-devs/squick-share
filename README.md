@@ -34,7 +34,7 @@ Android has Quick Share. iPhone has AirDrop. Your Mac has… nothing that talks 
 - 📱 **Works with the phone you already have.** Nothing to install on Android. Just tap **Share › Quick Share** and pick your Mac.
 - ⚡ **Fast.** Limited only by your Wi-Fi: about **35–40 MB/s** on a 5 GHz network. A 1 GB video arrives in about 30 seconds.
 - 🔒 **Private and encrypted.** Files go directly from device to device, encrypted end to end. Nothing is uploaded anywhere, and there's no account.
-- 🍏 **A real Mac app.** Native Swift and SwiftUI, an AirDrop-style window plus a small menu bar menu, light and dark mode, VoiceOver labels, Apple Silicon and Intel.
+- 🍏 **A real Mac app.** Native Swift and SwiftUI, a window with **Send**, **Receive**, **History** and **Settings** in a sidebar (⌘1–⌘3, ⌘,), a small menu bar menu, light and dark mode, VoiceOver labels, Apple Silicon and Intel.
 
 ## Features
 
@@ -111,7 +111,7 @@ More screenshots and a full tour: **[documentation site](https://mukesh-devs.git
 3. Check the **4-digit PIN** matches, then click **Accept**. Files land in **Downloads** and are never opened automatically.
 
 **Mac → Phone**
-1. Open squick-share (menu bar icon › **Open squick-share**), or right-click files in Finder › **Share › squick-share**.
+1. Open squick-share and choose **Send** in the sidebar (or menu bar icon › **Send Files…**), or right-click files in Finder › **Share › squick-share**.
 2. On the phone, open **Files › Quick Share › Receive** (or the **Quick Share** tile in Quick Settings) and keep it open. Android phones only show up while this screen is open.
 3. Drop the files on the phone when it appears (or click it to choose files), check the PIN, and accept on the phone.
 

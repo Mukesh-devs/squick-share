@@ -38,7 +38,7 @@ extension AppModel {
     /// If a tab switch hangs, the process never exits, which the caller detects with a timeout.
     func runSettingsTabTest(step: Int = 0) {
         let order: [SettingsTab] = [.general, .trustedDevices, .general, .diagnostics, .general]
-        if step == 0 { windows.showSettings(model: self) }
+        if step == 0 { showSettings() }
         guard step < 40 else {
             print("settings tab test: finished \(step) switches")
             fflush(stdout)
@@ -65,8 +65,12 @@ extension AppModel {
         try? Data("squick-share UI test\n".utf8).write(to: sampleFile)
         let request = Self.sampleRequest()
         let steps: [(String, () -> Void)] = [
-            ("open main window", { self.showMainWindow() }),
+            ("open main window", { self.showMainWindow(section: .send) }),
             ("load sample state", { self.debugLoadSampleState(request: request) }),
+            ("page: receive", { self.section = .receive }),
+            ("page: history", { self.section = .history }),
+            ("page: settings", { self.section = .settings }),
+            ("page: send", { self.section = .send }),
             ("build menu", { self.debugBuildMenu() }),
             ("visibility: everyone for 10 minutes", { self.settings.visibility = .temporary }),
             ("build menu with countdown", { self.debugBuildMenu() }),
@@ -78,10 +82,14 @@ extension AppModel {
             ("clear send list", { self.clearSendItems() }),
             ("searching state", { self.debugLoadSearchingState() }),
             ("open settings", { self.showSettings(tab: .general) }),
+            ("settings: rapid tab switches", {
+                for tab in [SettingsTab.trustedDevices, .diagnostics, .general, .trustedDevices, .general] { self.settingsTab = tab }
+            }),
             ("settings: trusted devices", { self.settingsTab = .trustedDevices }),
             ("settings: diagnostics", { self.settingsTab = .diagnostics }),
             ("settings: general", { self.settingsTab = .general }),
-            ("close settings", { self.windows.close(id: WindowCoordinator.settingsID) }),
+            ("leave settings", { self.section = .receive }),
+            ("rapid page switches", { for page in MainSection.allCases + MainSection.allCases { self.section = page } }),
             ("hide menu bar icon", { self.settings.showInMenuBar = false }),
             ("show menu bar icon", { self.settings.showInMenuBar = true }),
             ("bluetooth off", { self.settings.useBluetooth = false }),
@@ -95,7 +103,7 @@ extension AppModel {
             ("minimize main window", { self.windows.mainWindow?.miniaturize(nil) }),
             ("restore main window", { self.windows.mainWindow?.deminiaturize(nil) }),
             ("close main window", { self.windows.close(id: WindowCoordinator.mainID) }),
-            ("reopen main window", { self.showMainWindow() }),
+            ("reopen main window on history", { self.showMainWindow(section: .history) }),
             ("idle state", { self.debugLoadBrowsingState() }),
             ("close main window again", { self.windows.close(id: WindowCoordinator.mainID) }),
         ]
@@ -140,24 +148,30 @@ extension AppModel {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("snapshots", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let request = Self.sampleRequest()
-        let windowSize = NSSize(width: 660, height: 600)
+        let windowSize = NSSize(width: 860, height: 620)
         debugPrepareSnapshot()
         debugLoadSampleState(request: request)
 
+        let tallWindow = NSSize(width: 860, height: 1100)
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             let suffix = appearance == .aqua ? "light" : "dark"
-            render(mainWindow, size: NSSize(width: 660, height: 1180), "window-busy-\(suffix)", directory, appearance)
+            section = .send
+            render(mainWindow, size: tallWindow, "window-send-busy-\(suffix)", directory, appearance)
+            section = .receive
+            render(mainWindow, size: tallWindow, "window-receive-busy-\(suffix)", directory, appearance)
             render(MenuPreview().environmentObject(self).environmentObject(settings), width: StatusItemController.menuWidth,
                    "menu-\(suffix)", directory, appearance)
             render(IncomingRequestView(request: request).environmentObject(self).frame(width: 380), width: 380, "request-\(suffix)", directory, appearance)
         }
-        render(SettingsView().environmentObject(self).environmentObject(settings), width: 500, "settings-window", directory, .aqua)
+        render(SettingsView().environmentObject(self).environmentObject(settings).frame(width: 520, height: 540),
+               width: 520, "settings-window", directory, .aqua)
         render(GeneralSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 500), width: 500, "settings-general", directory, .aqua)
         render(DiagnosticsSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 420), width: 500, "settings-diagnostics", directory, .aqua)
         render(TrustedDevicesSettings().environmentObject(settings).frame(width: 500, height: 300), width: 500, "settings-trusted", directory, .aqua)
         render(ReceivedTextView(text: "https://example.com/a/very/long/link?with=query", kind: .url), width: 380, "text", directory, .aqua)
         render(MenuBarIconGallery(), width: 560, "menubar-icons", directory, .aqua)
 
+        section = .send
         showQRCode()
         render(mainWindow, size: windowSize, "window-qr", directory, .aqua)
         hideQRCode()
@@ -165,10 +179,15 @@ extension AppModel {
         debugLoadBrowsingState()
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             let suffix = appearance == .aqua ? "light" : "dark"
-            render(mainWindow, size: windowSize, "window-\(suffix)", directory, appearance)
+            for page in MainSection.allCases {
+                section = page
+                settingsTab = .general
+                render(mainWindow, size: windowSize, "window-\(page.rawValue)-\(suffix)", directory, appearance)
+            }
             render(MenuPreview().environmentObject(self).environmentObject(settings), width: StatusItemController.menuWidth,
                    "menu-idle-\(suffix)", directory, appearance)
         }
+        section = .send
         debugLoadSearchingState()
         render(mainWindow, size: windowSize, "window-searching", directory, .aqua)
         diagnostics.info("debug", "snapshots written")

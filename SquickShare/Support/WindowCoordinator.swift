@@ -2,14 +2,13 @@ import AppKit
 import QuickShareCore
 import SwiftUI
 
-/// Opens and tracks the app's windows (main, settings, request prompts, received text).
+/// Opens and tracks the app's windows (the main window, request prompts, received text).
 /// They are AppKit windows hosting SwiftUI, sized once from their content: SwiftUI's automatic window
 /// resizing can loop on macOS 26 (each resize changes the window's corner safe area, which re-lays out
 /// the content, which resizes the window again) until AppKit throws and the app quits.
 @MainActor
 final class WindowCoordinator: NSObject, NSWindowDelegate {
     static let mainID = "main"
-    static let settingsID = "settings"
 
     private var windows: [String: NSWindow] = [:]
     enum MainWindowEvent { case opened, minimized, restored, closed }
@@ -22,7 +21,7 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
 
     private enum Kind {
         /// A regular window: the app shows a Dock icon and menus while it is open.
-        case standard(resizable: Bool, size: NSSize?)
+        case standard(size: NSSize, minSize: NSSize)
         /// A small floating panel that never takes keyboard focus or activates the app.
         case floatingPanel
     }
@@ -42,14 +41,15 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
         let controller = NSHostingController(rootView: content())
         controller.sizingOptions = []
         var size = controller.view.fittingSize
-        if case .standard(_, let fixed?) = kind { size = fixed }
+        if case .standard(let fixed, _) = kind { size = fixed }
         if size.width < 1 || size.height < 1 { size = NSSize(width: 400, height: 300) }
 
         let window: NSWindow
         switch kind {
-        case .standard(let resizable, _):
-            let style: NSWindow.StyleMask = resizable ? [.titled, .closable, .miniaturizable, .resizable] : [.titled, .closable]
-            window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)
+        case .standard(_, let minSize):
+            window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            window.contentMinSize = minSize
         case .floatingPanel:
             let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
                                 styleMask: [.titled, .closable, .nonactivatingPanel, .utilityWindow],
@@ -63,9 +63,6 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
         }
         window.contentViewController = controller
         window.setContentSize(size)
-        if case .standard(true, _) = kind {
-            window.contentMinSize = NSSize(width: min(size.width, 520), height: min(size.height, 420))
-        }
         window.title = title
         window.isReleasedWhenClosed = false
         window.identifier = NSUserInterfaceItemIdentifier(id)
@@ -75,8 +72,9 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
         if case .floatingPanel = kind {
             placeTopRight(window)
         } else if id == Self.mainID {
-            window.setFrameAutosaveName("squick-share main window")
-            if !window.setFrameUsingName("squick-share main window") { window.center() }
+            // A new name: frames saved for the earlier, smaller window would be too small now.
+            window.setFrameAutosaveName("squick-share main window 2")
+            if !window.setFrameUsingName("squick-share main window 2") { window.center() }
         } else {
             window.center()
         }
@@ -143,7 +141,8 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
     // MARK: Specific windows
 
     func showMain(model: AppModel) {
-        show(id: Self.mainID, title: "squick-share", kind: .standard(resizable: true, size: NSSize(width: 660, height: 600))) {
+        show(id: Self.mainID, title: "squick-share",
+             kind: .standard(size: NSSize(width: 860, height: 620), minSize: NSSize(width: 700, height: 480))) {
             MainWindowView()
                 .environmentObject(model)
                 .environmentObject(model.settings)
@@ -156,12 +155,6 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
         show(id: "request-\(request.id)", title: "squick-share", kind: .floatingPanel, activate: false) {
             IncomingRequestView(request: request).environmentObject(model)
                 .frame(width: 380)
-        }
-    }
-
-    func showSettings(model: AppModel) {
-        show(id: Self.settingsID, title: "squick-share Settings", kind: .standard(resizable: false, size: nil)) {
-            SettingsView().environmentObject(model).environmentObject(model.settings)
         }
     }
 

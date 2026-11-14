@@ -84,7 +84,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(viewItem(MenuTransferView(id: transfer.id), height: 62))
         }
         if model.transfers.count > transfers.count {
-            menu.addItem(actionItem("Show All Transfers…", symbol: nil, action: #selector(openMain), object: nil))
+            menu.addItem(actionItem("Show All Transfers…", symbol: nil, action: #selector(openReceive), object: nil))
         }
         if !transfers.isEmpty { menu.addItem(.separator()) }
 
@@ -171,6 +171,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             submenu.addItem(entry)
         }
         submenu.addItem(.separator())
+        submenu.addItem(actionItem("Show History…", symbol: nil, action: #selector(openHistory), object: nil))
         submenu.addItem(actionItem("Open Downloads Folder", symbol: nil, action: #selector(openDownloads), object: nil))
         let clear = actionItem("Clear Recent Transfers", symbol: nil, action: #selector(clearRecents), object: nil)
         clear.isEnabled = !model.recents.isEmpty
@@ -197,6 +198,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openMain() { model?.showMainWindow() }
 
+    @objc private func openReceive() { model?.showMainWindow(section: .receive) }
+
+    @objc private func openHistory() { model?.showMainWindow(section: .history) }
+
     @objc private func sendFiles() { model?.chooseFiles() }
 
     @objc private func setVisibility(_ sender: NSMenuItem) {
@@ -214,7 +219,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         } else if let text = recent.text {
             model.copyText(text)
         } else {
-            model.showMainWindow()
+            model.showMainWindow(section: .history)
         }
     }
 

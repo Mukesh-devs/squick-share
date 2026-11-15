@@ -329,7 +329,7 @@ actor InboundSession {
 
     private func reportProgress(force: Bool = false) {
         let now = Date()
-        guard force || now.timeIntervalSince(lastProgress) >= 0.1 else { return }
+        guard force || now.timeIntervalSince(lastProgress) >= Limits.progressInterval else { return }
         lastProgress = now
         emit(.progress(transferID: id, bytes: receivedBytes, totalBytes: totalBytes))
     }
@@ -343,11 +343,12 @@ actor InboundSession {
         }
     }
 
+    /// Creates the destination folders and one writer per file. Writers open their files lazily.
     private func prepareWriters(root: URL) throws {
         for (payloadID, entry) in fileMetadata {
             let folder = try Destination.folder(root: root, components: entry.folder, created: &createdFolders)
-            writers[payloadID] = try IncomingFileWriter(payloadID: payloadID, expectedSize: entry.offer.size,
-                                                        folder: folder, name: entry.offer.name)
+            writers[payloadID] = IncomingFileWriter(payloadID: payloadID, expectedSize: entry.offer.size,
+                                                    folder: folder, name: entry.offer.name)
         }
     }
 
@@ -374,7 +375,7 @@ actor InboundSession {
             try? await transport.send(SharingFrames.cancel())
             try? await transport.send(OfflineFrames.disconnection())
         }
-        for writer in writers.values { writer.discard() }
+        for writer in writers.values { await writer.discard() }
         writers.removeAll()
         // Remove folders we created that are still empty, deepest first.
         for folder in createdFolders.reversed() {

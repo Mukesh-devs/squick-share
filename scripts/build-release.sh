@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds Release squick-share.app variants and zips them:
-#   build/release/<arch>/squick-share.app
+# Builds Release "SQuick Share.app" variants and zips them:
+#   build/release/<arch>/SQuick Share.app
 #   build/release/squick-share-<version>-<arch>.zip
 # where <arch> is universal (Apple Silicon + Intel), arm64 (Apple Silicon) or x86_64 (Intel).
 #
@@ -9,7 +9,7 @@
 #   ./scripts/build-release.sh --arch arm64       one variant: universal | arm64 | x86_64
 #   ./scripts/build-release.sh --all              all three variants
 #   ./scripts/build-release.sh --install          also quit any running copy, replace
-#                                                 /Applications/squick-share.app and open it
+#                                                 /Applications/SQuick Share.app and open it
 #                                                 (installs universal, or this Mac's architecture)
 # Then ./scripts/make-dmg.sh packages every built variant as squick-share-<version>-<arch>.dmg.
 #
@@ -59,7 +59,7 @@ build_variant() {
     *) echo "Unknown architecture \"$variant\": use universal, arm64 or x86_64" >&2; exit 1 ;;
   esac
   echo ""
-  echo "== squick-share ($variant: $archs) =="
+  echo "== SQuick Share ($variant: $archs) =="
 
   local derived="$ROOT/build/DerivedData-release-$variant"
   local dest="$OUT/$variant"
@@ -71,14 +71,14 @@ build_variant() {
     -derivedDataPath "$derived" ARCHS="$archs" ONLY_ACTIVE_ARCH=NO "${SIGN_ARGS[@]}" \
     clean build 2>&1 | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" | grep -v appintents || true
 
-  local built="$derived/Build/Products/Release/squick-share.app"
+  local built="$derived/Build/Products/Release/SQuick Share.app"
   [[ -d "$built" ]] || { echo "build failed ($variant)" >&2; exit 1; }
-  local app="$dest/squick-share.app"
+  local app="$dest/SQuick Share.app"
   ditto "$built" "$app"
 
   local version actual
   version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/Contents/Info.plist")
-  actual=$(lipo -archs "$app/Contents/MacOS/squick-share")
+  actual=$(lipo -archs "$app/Contents/MacOS/SQuick Share")
   echo "Architectures: $actual"
   [[ "$(echo "$actual" | tr ' ' '\n' | sort | xargs)" == "$(echo "$archs" | tr ' ' '\n' | sort | xargs)" ]] \
     || { echo "expected \"$archs\", got \"$actual\"" >&2; exit 1; }
@@ -107,18 +107,20 @@ if $INSTALL; then
   [[ "$host" == "x86_64" || "$host" == "arm64" ]] || host=universal
   source_app=""
   for candidate in universal "$host"; do
-    if [[ -d "$OUT/$candidate/squick-share.app" ]] && [[ " ${VARIANTS[*]} " == *" $candidate "* ]]; then
-      source_app="$OUT/$candidate/squick-share.app"
+    if [[ -d "$OUT/$candidate/SQuick Share.app" ]] && [[ " ${VARIANTS[*]} " == *" $candidate "* ]]; then
+      source_app="$OUT/$candidate/SQuick Share.app"
       break
     fi
   done
   [[ -n "$source_app" ]] || { echo "--install: no build for this Mac ($host) or universal" >&2; exit 1; }
+  # Quit any running copy, including the app's earlier name (squick-share), so only one advertises.
+  osascript -e 'quit app "SQuick Share"' 2>/dev/null || true
   osascript -e 'quit app "squick-share"' 2>/dev/null || true
-  # Also stop copies started from other locations (e.g. this build folder), so only one advertises.
+  pkill -x "SQuick Share" 2>/dev/null || true
   pkill -x squick-share 2>/dev/null || true
   sleep 1
-  rm -rf /Applications/squick-share.app
-  ditto "$source_app" /Applications/squick-share.app
-  open /Applications/squick-share.app
-  echo "Installed and opened /Applications/squick-share.app (from $source_app)"
+  rm -rf "/Applications/SQuick Share.app" /Applications/squick-share.app
+  ditto "$source_app" "/Applications/SQuick Share.app"
+  open "/Applications/SQuick Share.app"
+  echo "Installed and opened /Applications/SQuick Share.app (from $source_app)"
 fi

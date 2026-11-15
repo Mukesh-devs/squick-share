@@ -18,7 +18,11 @@ public enum Limits {
     static let handshakeTimeout: TimeInterval = 15
     static let pairedKeyTimeout: TimeInterval = 15
     static let introductionTimeout: TimeInterval = 15
-    static let connectTimeout: TimeInterval = 15
+    /// Google's Apple implementation gives up after 4 s; refused connections now fail at once,
+    /// so this only bounds slow networks.
+    static let connectTimeout: TimeInterval = 10
+    /// Minimum time between progress events. Each one redraws the UI, so a few per second is plenty.
+    static let progressInterval: TimeInterval = 0.25
 }
 
 /// 4-byte big-endian length prefix framing (PROTOCOL_NOTES §3).

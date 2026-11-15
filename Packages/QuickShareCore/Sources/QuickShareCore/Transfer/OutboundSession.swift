@@ -316,7 +316,7 @@ actor OutboundSession {
 
     private func reportProgress(force: Bool = false) {
         let now = Date()
-        guard force || now.timeIntervalSince(lastProgress) >= 0.1 else { return }
+        guard force || now.timeIntervalSince(lastProgress) >= Limits.progressInterval else { return }
         lastProgress = now
         emit(.progress(transferID: id, bytes: sentBytes, totalBytes: totalBytes))
     }

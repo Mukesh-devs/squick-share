@@ -15,32 +15,62 @@ final class BlockingIO: @unchecked Sendable {
             }
         }
     }
+
 }
 
 /// Streams one received file into a temporary file inside its destination folder,
 /// then renames it into place. Memory use is one chunk at a time.
+///
+/// The temporary file is only created when the first chunk arrives (or when an empty file finishes).
+/// Senders transfer files one after another, so a transfer of thousands of files keeps at most a
+/// couple of file descriptors open instead of one per file (the default limit is 256).
 final class IncomingFileWriter: @unchecked Sendable {
     let payloadID: Int64
     let expectedSize: Int64
     let folder: URL
     let name: String
-    private let tempURL: URL
-    private let handle: FileHandle
+    let tempURL: URL
     private let io: BlockingIO
+    private var handle: FileHandle?
     private(set) var written: Int64 = 0
     private var finished = false
 
-    init(payloadID: Int64, expectedSize: Int64, folder: URL, name: String) throws {
+    init(payloadID: Int64, expectedSize: Int64, folder: URL, name: String) {
         self.payloadID = payloadID
         self.expectedSize = expectedSize
         self.folder = folder
         self.name = name
         tempURL = folder.appendingPathComponent(".squick-share-\(UUID().uuidString).part")
-        guard FileManager.default.createFile(atPath: tempURL.path, contents: nil) else {
-            throw TransferError.fileAccess("cannot create temporary file")
-        }
-        handle = try FileHandle(forWritingTo: tempURL)
         io = BlockingIO(label: "squickshare.write.\(payloadID)")
+    }
+
+    /// Whether the temporary file has been created.
+    var isOpen: Bool { handle != nil }
+
+    private func openIfNeeded() async throws -> FileHandle {
+        if let handle { return handle }
+        guard !finished else { throw TransferError.cancelledByUser }
+        let temp = tempURL
+        let opened: FileHandle
+        do {
+            opened = try await io.run { () throws -> FileHandle in
+                guard FileManager.default.createFile(atPath: temp.path, contents: nil) else {
+                    throw TransferError.fileAccess("cannot create temporary file")
+                }
+                return try FileHandle(forWritingTo: temp)
+            }
+        } catch let error as TransferError {
+            throw error
+        } catch {
+            throw Self.map(error)
+        }
+        if finished {
+            // Discarded while the file was being created.
+            _ = try? await io.run { try? opened.close(); try? FileManager.default.removeItem(at: temp) }
+            throw TransferError.cancelledByUser
+        }
+        handle = opened
+        return opened
     }
 
     /// Appends `data`, which must start at the current end of the file.
@@ -52,7 +82,7 @@ final class IncomingFileWriter: @unchecked Sendable {
             throw TransferError.protocolViolation("file payload larger than announced")
         }
         guard !data.isEmpty else { return }
-        let handle = self.handle
+        let handle = try await openIfNeeded()
         do {
             try await io.run { try handle.write(contentsOf: data) }
         } catch {
@@ -66,25 +96,41 @@ final class IncomingFileWriter: @unchecked Sendable {
         guard written == expectedSize else {
             throw TransferError.protocolViolation("file ended at \(written) of \(expectedSize) bytes")
         }
-        let handle = self.handle, temp = tempURL, folder = self.folder, name = self.name
-        let url = try await io.run { () throws -> URL in
-            try handle.synchronize()
-            try handle.close()
-            return try Destination.moveExclusive(temp, to: folder, name: name)
+        let handle = try await openIfNeeded()   // creates the file for empty payloads
+        let temp = tempURL, folder = self.folder, name = self.name
+        let url: URL
+        do {
+            url = try await io.run { () throws -> URL in
+                try handle.synchronize()
+                try handle.close()
+                return try Destination.moveExclusive(temp, to: folder, name: name)
+            }
+        } catch let error as TransferError {
+            throw error
+        } catch {
+            throw Self.map(error)
         }
         finished = true
+        self.handle = nil
         return url
     }
 
-    /// Deletes the temporary file. Safe to call more than once.
-    func discard() {
+    /// Deletes the temporary file once any write already in progress is done, and returns after that,
+    /// so the caller can then remove folders that became empty. Safe to call more than once.
+    func discard() async {
         guard !finished else { return }
         finished = true
-        try? handle.close()
-        try? FileManager.default.removeItem(at: tempURL)
+        guard let handle else { return }
+        self.handle = nil
+        let temp = tempURL
+        _ = try? await io.run {
+            try? handle.close()
+            try? FileManager.default.removeItem(at: temp)
+        }
     }
 
     static func map(_ error: Error) -> TransferError {
+        if let error = error as? TransferError { return error }
         let ns = error as NSError
         if ns.domain == NSCocoaErrorDomain, ns.code == NSFileWriteOutOfSpaceError { return .diskFull }
         let posix = ns.domain == NSPOSIXErrorDomain ? ns : ns.userInfo[NSUnderlyingErrorKey] as? NSError

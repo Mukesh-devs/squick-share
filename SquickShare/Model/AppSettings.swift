@@ -9,8 +9,8 @@ enum Visibility: String, CaseIterable, Identifiable, Codable {
     var label: String {
         switch self {
         case .everyone: "Everyone"
-        case .hidden: "Hidden"
-        case .temporary: "Visible for 10 minutes"
+        case .hidden: "No One"
+        case .temporary: "Everyone for 10 Minutes"
         }
     }
 }
@@ -39,13 +39,23 @@ final class AppSettings: ObservableObject {
     @Published var interface: InterfaceRestriction { didSet { defaults.set(interface.rawValue, forKey: "interface") } }
     @Published var verboseLogging: Bool { didSet { defaults.set(verboseLogging, forKey: "verboseLogging") } }
     @Published var protocolOptions: ProtocolOptions { didSet { save(protocolOptions, "protocolOptions") } }
+    /// Show the icon in the menu bar. When off, the app keeps a Dock icon so it stays reachable.
+    @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: "showInMenuBar") } }
+    /// The welcome screen was shown (first launch only).
+    @Published var hasSeenWelcome: Bool { didSet { defaults.set(hasSeenWelcome, forKey: "hasSeenWelcome") } }
+    /// Keep the Dock icon even when no window is open.
+    @Published var showInDock: Bool { didSet { defaults.set(showInDock, forKey: "showInDock") } }
+    /// Listen for phones that start Quick Share over Bluetooth, and announce this Mac to them at once.
+    @Published var useBluetooth: Bool { didSet { defaults.set(useBluetooth, forKey: "useBluetooth") } }
     @Published private(set) var downloadFolder: URL
     @Published private(set) var launchAtLogin = false
 
     private var scopedFolder: URL?
 
     init() {
-        let defaultName = Host.current().localizedName ?? "Mac"
+        // The computer name can be longer than the 50 characters a name may have.
+        let computerName = (Host.current().localizedName ?? "Mac").trimmingCharacters(in: .whitespacesAndNewlines)
+        let defaultName = computerName.isEmpty ? "Mac" : String(computerName.prefix(50))
         deviceName = defaults.string(forKey: "deviceName").flatMap { Self.validateName($0) == nil ? $0 : nil } ?? defaultName
         let storedVisibility = Visibility(rawValue: defaults.string(forKey: "visibility") ?? "") ?? .everyone
         visibility = storedVisibility == .temporary ? .hidden : storedVisibility   // a timer never survives a relaunch
@@ -55,6 +65,10 @@ final class AppSettings: ObservableObject {
         verboseLogging = defaults.bool(forKey: "verboseLogging")
         trustedDevices = Self.load([TrustedDevice].self, "trustedDevices") ?? []
         protocolOptions = Self.load(ProtocolOptions.self, "protocolOptions") ?? ProtocolOptions()
+        showInMenuBar = defaults.object(forKey: "showInMenuBar") as? Bool ?? true
+        useBluetooth = defaults.object(forKey: "useBluetooth") as? Bool ?? true
+        showInDock = defaults.bool(forKey: "showInDock")
+        hasSeenWelcome = defaults.bool(forKey: "hasSeenWelcome")
         downloadFolder = Self.realDownloadsFolder
         restoreDownloadFolder()
         refreshLaunchAtLogin()
@@ -126,6 +140,8 @@ final class AppSettings: ObservableObject {
 
     // MARK: Launch at login
 
+    static var isLaunchAtLoginEnabled: Bool { SMAppService.mainApp.status == .enabled }
+
     func refreshLaunchAtLogin() {
         // Only publish real changes. Settings calls this when its General tab appears; publishing an
         // unchanged value made macOS 26's TabView rebuild the tab, which appeared again, forever.
@@ -139,7 +155,7 @@ final class AppSettings: ObservableObject {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             if enabled, SMAppService.mainApp.status == .requiresApproval {
-                return "Allow squick-share in System Settings → General → Login Items."
+                return "Allow SQuick Share in System Settings → General → Login Items."
             }
             return nil
         } catch {

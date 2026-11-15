@@ -11,9 +11,12 @@ public struct DiscoveredDevice: Sendable, Identifiable, Hashable {
     public let type: DeviceType
     let endpoint: SendableEndpoint
     let endpointInfo: EndpointInfo
+    /// False when the device has stopped answering. It stays listed for a few seconds in case it
+    /// comes back (phones re-register their service from time to time), like Google's discovery cache.
+    public internal(set) var isAvailable = true
 
     public static func == (a: DiscoveredDevice, b: DiscoveredDevice) -> Bool {
-        a.id == b.id && a.name == b.name && a.type == b.type
+        a.id == b.id && a.name == b.name && a.type == b.type && a.isAvailable == b.isAvailable
     }
 
     public func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -60,8 +63,11 @@ public final class NearbyBrowser: @unchecked Sendable {
     private let statusHandler: @Sendable (BrowserStatus) -> Void
     /// Our own receiver's endpoint ID, so we don't list ourselves.
     private let ownEndpointIDs: @Sendable () -> Set<String>
-    /// How long a device stays listed after the browser that saw it was replaced.
-    private static let retention: TimeInterval = 12
+    /// How long a device stays listed after it was last reported (Google uses 15 s).
+    private static let retention: TimeInterval = 15
+    /// A device not reported by the current browser for this long is shown as unavailable.
+    /// Longer than one re-query cycle, so re-querying never makes devices flicker.
+    private static let freshness: TimeInterval = 8
 
     /// - Parameter requeryInterval: restart the mDNS query this often (0 = never). mDNS queriers back off
     ///   exponentially, so a phone that joins the network after browsing started can otherwise go
@@ -131,13 +137,13 @@ public final class NearbyBrowser: @unchecked Sendable {
         let browser = NWBrowser(for: .bonjourWithTXTRecord(type: ServiceName.serviceType, domain: nil), using: parameters)
         let diagnostics = self.diagnostics
         let statusHandler = self.statusHandler
-        browser.stateUpdateHandler = { state in
+        browser.stateUpdateHandler = { [weak self] state in
+            // Only the current browser speaks for discovery: a replaced one must not overwrite its status.
+            guard let self, self.isCurrent(generation) else { return }
             switch state {
             case .ready:
-                if initial {
-                    diagnostics.info("browser", "browsing for \(ServiceName.serviceType)")
-                    statusHandler(.browsing)
-                }
+                if initial { diagnostics.info("browser", "browsing for \(ServiceName.serviceType)") }
+                statusHandler(.browsing)
             case .waiting(let error), .failed(let error):
                 if case .dns(let code) = error, code == -65570 {
                     diagnostics.error("browser", "local network permission denied")
@@ -146,8 +152,13 @@ public final class NearbyBrowser: @unchecked Sendable {
                     diagnostics.error("browser", "browser error: \(error)")
                     statusHandler(.failed(error.localizedDescription))
                 }
-            case .cancelled:
-                if initial { break }
+                if case .failed = state {
+                    // A failed browser never recovers on its own: start a fresh one shortly.
+                    self.queue.asyncAfter(deadline: .now() + 3) { [weak self] in
+                        guard let self, self.isCurrent(generation) else { return }
+                        self.requery()
+                    }
+                }
             default:
                 break
             }
@@ -157,6 +168,12 @@ public final class NearbyBrowser: @unchecked Sendable {
         }
         browser.start(queue: queue)
         self.browser = browser
+    }
+
+    private func isCurrent(_ generation: Int) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return running && generation == self.generation
     }
 
     private func publish(_ results: Set<NWBrowser.Result>, generation: Int) {
@@ -193,7 +210,11 @@ public final class NearbyBrowser: @unchecked Sendable {
         lock.lock()
         let now = Date()
         seen = seen.filter { currentIDs.contains($0.key) || now.timeIntervalSince($0.value.lastSeen) < Self.retention }
-        var devices = seen.values.map(\.device)
+        var devices = seen.map { id, entry -> DiscoveredDevice in
+            var device = entry.device
+            device.isAvailable = currentIDs.contains(id) || now.timeIntervalSince(entry.lastSeen) < Self.freshness
+            return device
+        }
         devices.sort { ($0.name ?? "~") < ($1.name ?? "~") }
         let summary = "found \(devices.count) device(s): "
             + devices.map { "\($0.endpointID)/\($0.type)\($0.name == nil ? "/hidden" : "")\($0.endpointInfo.qrCodeData != nil ? "/qr" : "")" }.joined(separator: ", ")

@@ -1,5 +1,40 @@
 import Foundation
 import QuickShareCore
+import UniformTypeIdentifiers
+
+/// What a file or text item is, for drawing its document icon (JPG, MP4, PDF, link…). Display only.
+struct DocKind: Codable, Hashable {
+    enum Category: String, Codable { case image, video, audio, pdf, document, archive, link, text, other }
+    var category: Category
+    /// Short type label shown on the icon, e.g. "JPG".
+    var label: String
+
+    static let link = DocKind(category: .link, label: "URL")
+    static let text = DocKind(category: .text, label: "TEXT")
+
+    init(category: Category, label: String) {
+        self.category = category
+        self.label = label
+    }
+
+    init(fileName: String) {
+        let ext = (fileName as NSString).pathExtension.lowercased()
+        let type = UTType(filenameExtension: ext)
+        label = ext.isEmpty ? "FILE" : String(ext.uppercased().prefix(4))
+        if let type, type.conforms(to: .pdf) { category = .pdf }
+        else if let type, type.conforms(to: .image) { category = .image }
+        else if let type, type.conforms(to: .movie) || type.conforms(to: .video) { category = .video }
+        else if let type, type.conforms(to: .audio) { category = .audio }
+        else if let type, type.conforms(to: .archive) { category = .archive }
+        else if let type, type.conforms(to: .text) || type.conforms(to: .presentation) || type.conforms(to: .spreadsheet)
+                    || type.conforms(to: .compositeContent) { category = .document }
+        else { category = .other }
+    }
+
+    init(text: String) {
+        self = Format.webURL(text) != nil ? .link : .text
+    }
+}
 
 enum TransferDirection: String, Codable {
     case incoming, outgoing
@@ -42,6 +77,10 @@ struct ActiveTransfer: Identifiable {
     var texts: [String] = []
     /// The user pressed Cancel; waiting for the session to stop.
     var cancelling = false
+    /// Outgoing only: the `DiscoveredDevice.id` it goes to, so the device list can show its progress.
+    var targetID: String? = nil
+    /// The items' kinds, for document icons (display only).
+    var kinds: [DocKind] = []
 
     var fraction: Double { totalBytes > 0 ? min(1, Double(bytes) / Double(totalBytes)) : 0 }
 
@@ -56,6 +95,34 @@ struct ActiveTransfer: Identifiable {
         default: false
         }
     }
+
+    /// One line for menus and notifications, e.g. "Sending 3 files…".
+    var headline: String {
+        switch phase {
+        case .connecting: return "Connecting to \(deviceName)…"
+        case .waitingForAcceptance: return "Waiting for \(deviceName)…"
+        case .transferring: return "\(direction == .incoming ? "Receiving" : "Sending") \(summary)…"
+        case .completed: return direction == .incoming ? "Received \(summary)" : "Sent \(summary)"
+        case .failed: return "\(direction == .incoming ? "Receiving" : "Sending") \(summary) failed"
+        }
+    }
+
+    /// "24.1 MB of 28.4 MB (85%)", or nil before sizes are known.
+    var progressLine: String? {
+        guard totalBytes > 0 else { return nil }
+        return "\(Format.bytes(bytes)) of \(Format.bytes(totalBytes)) (\(Int(fraction * 100))%)"
+    }
+}
+
+/// Text or a link that arrived, offered with Open and Copy. Nothing opens by itself.
+struct ReceivedTextItem: Identifiable, Equatable {
+    let id: UUID
+    let text: String
+    let kind: TextKind
+    let deviceName: String
+
+    /// A web link that can be opened in the browser, or nil for other text.
+    var webURL: URL? { Format.webURL(text) }
 }
 
 /// A finished transfer kept in the "Recent" list (persisted).
@@ -69,6 +136,10 @@ struct RecentTransfer: Identifiable, Codable {
     let text: String?
     let succeeded: Bool
     let message: String?
+    /// Display only; missing in entries saved by earlier versions.
+    var kinds: [DocKind]? = nil
+    var totalBytes: Int64? = nil
+    var deviceType: DeviceType? = nil
 
     var title: String {
         if let first = itemNames.first {
@@ -79,6 +150,14 @@ struct RecentTransfer: Identifiable, Codable {
 }
 
 enum Format {
+    /// `text` as an http(s) link, or nil.
+    static func webURL(_ text: String) -> URL? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.contains(" "), let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme), url.host != nil else { return nil }
+        return url
+    }
+
     static func bytes(_ count: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: count, countStyle: .file)
     }
@@ -97,6 +176,15 @@ enum Format {
     static func countdown(_ seconds: TimeInterval) -> String {
         let total = max(0, Int(seconds.rounded(.up)))
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    /// "5 files (132.7 MB)", "1 link", "2 files and text (3 MB)".
+    static func countSummary(files: Int, texts: Int, bytes: Int64) -> String {
+        var parts: [String] = []
+        if files > 0 { parts.append(files == 1 ? "1 file" : "\(files) files") }
+        if texts > 0 { parts.append(texts == 1 ? "text" : "\(texts) texts") }
+        let base = parts.isEmpty ? "Transfer" : parts.joined(separator: " and ")
+        return bytes > 0 ? "\(base) (\(Self.bytes(bytes)))" : base
     }
 
     static func summary(files: [String], texts: Int) -> String {

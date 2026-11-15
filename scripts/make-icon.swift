@@ -85,22 +85,22 @@ func drawIcon(pixels: Int) -> Data {
     ctx.saveGState()
     ctx.setShadow(offset: CGSize(width: 0, height: -size * 0.012), blur: size * 0.04, color: color(0, 0, 0, 0.38))
     ctx.addPath(tilePath)
-    ctx.setFillColor(color(20, 74, 214))
+    ctx.setFillColor(color(0, 82, 224))
     ctx.fillPath()
     ctx.restoreGState()
 
-    // Tile: diagonal blue gradient, a soft light from the top left, and depth towards the bottom right.
+    // Tile: a rich, saturated blue running from sky blue at the top to deep blue at the bottom, like
+    // Apple's own blue icons, with just a hint of light at the top and depth at the bottom.
     ctx.saveGState()
     ctx.addPath(tilePath)
     ctx.clip()
-    ctx.drawLinearGradient(gradient([color(86, 156, 255), color(20, 74, 214)]),
-                           start: CGPoint(x: tile.minX + tile.width * 0.15, y: tile.maxY),
-                           end: CGPoint(x: tile.maxX - tile.width * 0.15, y: tile.minY), options: [])
-    let light = CGPoint(x: size * 0.32, y: size * 0.78)
-    ctx.drawRadialGradient(gradient([color(255, 255, 255, 0.24), color(255, 255, 255, 0)]),
-                           startCenter: light, startRadius: 0, endCenter: light, endRadius: size * 0.5, options: [])
-    let shade = CGPoint(x: size * 0.7, y: size * 0.05)
-    ctx.drawRadialGradient(gradient([color(8, 30, 110, 0.35), color(8, 30, 110, 0)]),
+    ctx.drawLinearGradient(gradient([color(28, 160, 255), color(0, 82, 224)]),
+                           start: CGPoint(x: 0, y: tile.maxY), end: CGPoint(x: 0, y: tile.minY), options: [])
+    let light = CGPoint(x: size * 0.5, y: size * 0.88)
+    ctx.drawRadialGradient(gradient([color(255, 255, 255, 0.10), color(255, 255, 255, 0)]),
+                           startCenter: light, startRadius: 0, endCenter: light, endRadius: size * 0.55, options: [])
+    let shade = CGPoint(x: size * 0.5, y: size * 0.02)
+    ctx.drawRadialGradient(gradient([color(0, 20, 120, 0.12), color(0, 20, 120, 0)]),
                            startCenter: shade, startRadius: 0, endCenter: shade, endRadius: size * 0.55, options: [])
     ctx.restoreGState()
 
@@ -110,7 +110,7 @@ func drawIcon(pixels: Int) -> Data {
     ctx.setLineWidth(max(1, size * 0.006))
     ctx.replacePathWithStrokedPath()
     ctx.clip()
-    ctx.drawLinearGradient(gradient([color(255, 255, 255, 0.55), color(255, 255, 255, 0)]),
+    ctx.drawLinearGradient(gradient([color(255, 255, 255, 0.45), color(255, 255, 255, 0)]),
                            start: CGPoint(x: 0, y: tile.maxY), end: CGPoint(x: 0, y: tile.midY), options: [])
     ctx.restoreGState()
 

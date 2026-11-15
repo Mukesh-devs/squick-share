@@ -17,7 +17,17 @@ macOS darkens it automatically (charcoal tile, blue S).
 
 The main window has a sidebar with four pages: **Send** (⌘1), **Receive** (⌘2), **History** (⌘3) and
 **Settings** (⌘,). The sidebar shows a badge when a request is waiting or a transfer is running, and the
-bottom of the sidebar shows whether this Mac can be found.
+"This Mac" card at the bottom shows whether this Mac can be found. The toolbar's buttons change with the
+page: Send Text and Choose Files on Send, the Downloads folder on Receive, a filter and search on
+History, and a search field on Settings.
+
+## Welcome
+
+Shown once, the first time the window opens.
+
+| Light | Dark |
+|---|---|
+| ![](welcome-light.png) | ![](welcome-dark.png) |
 
 ## Send
 
@@ -25,9 +35,8 @@ bottom of the sidebar shows whether this Mac can be found.
 |---|---|
 | ![](window-send-light.png) | ![](window-send-dark.png) |
 
-**Busy:** a received link (banner with Open Link / Copy), a request waiting (strip with Accept and
-Decline), an item to send, progress rings and PIN on the devices, a declined send, and the transfers
-in progress.
+**Busy:** a request waiting (strip with Accept and Decline), progress rings and the PIN on the devices,
+a finished send, and a transfer in progress with its document icons.
 
 | Light | Dark |
 |---|---|
@@ -43,7 +52,7 @@ in progress.
 |---|---|
 | ![](window-receive-light.png) | ![](window-receive-dark.png) |
 
-**Busy:** a request with its PIN, and a transfer coming in.
+**Busy:** a request with its document icons, PIN digits, Accept and Decline, and a transfer coming in.
 
 | Light | Dark |
 |---|---|
@@ -51,7 +60,8 @@ in progress.
 
 ## History
 
-Search with ⌘F; click a row and press Return (or double-click) to open it.
+Grouped by day. Filter with All / Received / Sent, search with ⌘F, double-click (or select and press
+Return) to open, right-click for Show in Finder, Copy and Remove, or drag a received file out to Finder.
 
 | Light | Dark |
 |---|---|
@@ -63,9 +73,9 @@ Search with ⌘F; click a row and press Return (or double-click) to open it.
 |---|---|
 | ![](window-settings-light.png) | ![](window-settings-dark.png) |
 
-| General | Trusted Devices | Diagnostics |
+| Search | Trusted Devices | Diagnostics |
 |---|---|---|
-| ![](settings-general.png) | ![](settings-trusted.png) | ![](settings-diagnostics.png) |
+| ![](settings-search.png) | ![](settings-trusted.png) | ![](settings-diagnostics.png) |
 
 ## Menu bar menu
 
@@ -78,14 +88,8 @@ render, with the standard items drawn alongside for reference.
 
 ![Menu bar icon states](menubar-icons.png)
 
-## Incoming request
+## Requests and received text
 
-As it appears on the Receive page. There is no pop-up window: requests arrive as a notification with
-Accept and Decline, and wait in the window and the menu bar.
-
-| Light | Dark |
-|---|---|
-| ![](request-light.png) | ![](request-dark.png) |
-
-Received links and text arrive as a notification with Open Link and Copy, and as a banner in the
-window (see Send, busy). No window pops up.
+There is no pop-up window: requests arrive as a notification with Accept and Decline, and wait on the
+Receive page (see Receive, busy) and in the menu bar. Received links and text arrive as a notification
+with Open Link and Copy, and as a banner in the window. No window pops up.

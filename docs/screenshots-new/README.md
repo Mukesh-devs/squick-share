@@ -7,7 +7,8 @@ README or the documentation site yet; `docs/images/` still holds the old popover
 ## App icon
 
 An original mark: an S of two arcs with ball ends, its middle bar split into two arrows meeting in the
-centre (send → ← receive). Drawn by `scripts/make-icon.swift`. On macOS 26 with the Dark icon style,
+centre (send → ← receive), on a rich Apple-style blue (sky blue at the top to deep blue at the
+bottom). The app's accent colour uses the same blue. Drawn by `scripts/make-icon.swift`. On macOS 26 with the Dark icon style,
 macOS darkens it automatically (charcoal tile, blue S).
 
 ![App icon](app-icon.png)

@@ -205,8 +205,6 @@ final class WindowCoordinator: NSObject, NSWindowDelegate, NSToolbarDelegate, NS
         hosting.sizingOptions = [.intrinsicContentSize]
         item.view = hosting
         item.label = label
-        // These buttons draw their own pill; macOS 26 would also put them on a shared glass platter.
-        if #available(macOS 26.0, *) { item.hidesSharedBackground = true }
         return item
     }
 

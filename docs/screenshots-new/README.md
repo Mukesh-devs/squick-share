@@ -4,6 +4,16 @@ Rendered from the app with `./scripts/make-screenshots.sh --out docs/screenshots
 at 2x, with neutral sample data (device name "MacBook Pro", sample phones). Nothing here is used by the
 README or the documentation site yet; `docs/images/` still holds the old popover screenshots.
 
+## App icon
+
+An original mark: an S of two arcs with ball ends, its middle bar split into two arrows meeting in the
+centre (send → ← receive). Drawn by `scripts/make-icon.swift`. On macOS 26 with the Dark icon style,
+macOS darkens it automatically (charcoal tile, blue S).
+
+![App icon](app-icon.png)
+
+## Main window
+
 The main window has a sidebar with four pages: **Send** (⌘1), **Receive** (⌘2), **History** (⌘3) and
 **Settings** (⌘,). The sidebar shows a badge when a request is waiting or a transfer is running, and the
 bottom of the sidebar shows whether this Mac can be found.
@@ -14,8 +24,9 @@ bottom of the sidebar shows whether this Mac can be found.
 |---|---|
 | ![](window-send-light.png) | ![](window-send-dark.png) |
 
-**Busy:** a request waiting (strip at the top), an item to send, progress rings and PIN on the devices,
-a declined send, and the transfers in progress.
+**Busy:** a received link (banner with Open Link / Copy), a request waiting (strip with Accept and
+Decline), an item to send, progress rings and PIN on the devices, a declined send, and the transfers
+in progress.
 
 | Light | Dark |
 |---|---|
@@ -38,6 +49,8 @@ a declined send, and the transfers in progress.
 | ![](window-receive-busy-light.png) | ![](window-receive-busy-dark.png) |
 
 ## History
+
+Search with ⌘F; click a row and press Return (or double-click) to open it.
 
 | Light | Dark |
 |---|---|
@@ -64,14 +77,14 @@ render, with the standard items drawn alongside for reference.
 
 ![Menu bar icon states](menubar-icons.png)
 
-## Incoming request panel
+## Incoming request
 
-Shown only when notifications are off; it floats without taking keyboard focus.
+As it appears on the Receive page. There is no pop-up window: requests arrive as a notification with
+Accept and Decline, and wait in the window and the menu bar.
 
 | Light | Dark |
 |---|---|
 | ![](request-light.png) | ![](request-dark.png) |
 
-## Received text
-
-![](text.png)
+Received links and text arrive as a notification with Open Link and Copy, and as a banner in the
+window (see Send, busy). No window pops up.

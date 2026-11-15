@@ -19,9 +19,7 @@ No cable. No cloud. No account. Straight over your Wi-Fi.
 
 <br>
 
-<img src="docs/images/popover-idle-light.png" width="300" alt="SQuick Share menu bar window">&nbsp;&nbsp;
-<img src="docs/images/request-dark.png" width="320" alt="Incoming transfer with PIN">&nbsp;&nbsp;
-<img src="docs/images/send-list.png" width="300" alt="Choosing a nearby device">
+<img src="docs/images/window-send-busy-light.png" width="820" alt="The SQuick Share window: nearby devices, a request waiting and a transfer in progress">
 
 </div>
 
@@ -84,14 +82,16 @@ SQuick Share is free and ad-hoc signed rather than notarized by Apple, so macOS 
 
 <table>
 <tr>
-<td align="center"><img src="docs/images/popover-light.png" width="260"><br><sub>Requests, live transfers and PIN check</sub></td>
-<td align="center"><img src="docs/images/popover-idle-dark.png" width="260"><br><sub>Dark mode, ready to share</sub></td>
-<td align="center"><img src="docs/images/request-light.png" width="280"><br><sub>Accept or decline, with file types and sizes</sub></td>
+<td align="center"><img src="docs/images/window-receive-busy-light.png" width="420"><br><sub>Receive: check the PIN, then Accept or Decline</sub></td>
+<td align="center"><img src="docs/images/window-history-dark.png" width="420"><br><sub>History, grouped by day, in dark mode</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/send-qr.png" width="260"><br><sub>Send panel</sub></td>
-<td align="center"><img src="docs/images/settings-general.png" width="300"><br><sub>Settings</sub></td>
-<td align="center"><img src="docs/images/text.png" width="280"><br><sub>Received links: Open or Copy</sub></td>
+<td align="center"><img src="docs/images/window-settings-light.png" width="420"><br><sub>Settings</sub></td>
+<td align="center"><img src="docs/images/window-send-dark.png" width="420"><br><sub>Nearby devices, in dark mode</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/menu-light.png" width="260"><br><sub>Menu bar menu: requests, transfers and visibility</sub></td>
+<td align="center"><img src="docs/images/welcome-light.png" width="360"><br><sub>Welcome on first launch</sub></td>
 </tr>
 </table>
 
@@ -208,7 +208,7 @@ Bundle ID: `tech.mukesh.squick-share` (set in `project.yml`).
 
 ### Releases and documentation (GitHub Actions + Pages)
 
-- **Releases:** bump `MARKETING_VERSION` in `project.yml`, run `xcodegen generate`, commit, then `git tag v1.0.2 && git push origin v1.0.2`. The [release workflow](.github/workflows/release.yml) runs the tests and attaches `squick-share-<version>-{universal,arm64,x86_64}.{dmg,zip}` to a GitHub Release, with a link to the documentation site.
+- **Releases:** bump `MARKETING_VERSION` in `project.yml`, run `xcodegen generate`, commit, then `git tag v1.1.0 && git push origin v1.1.0`. The [release workflow](.github/workflows/release.yml) runs the tests and attaches `squick-share-<version>-{universal,arm64,x86_64}.{dmg,zip}` to a GitHub Release, with a link to the documentation site.
 - **Documentation site:** [`docs/index.html`](docs/index.html), served by GitHub Pages (Settings › Pages › Deploy from a branch › `main`, folder `/docs`).
 - **Screenshots:** `./scripts/make-screenshots.sh` re-renders every image in `docs/images/` from the real UI with neutral sample data.
 

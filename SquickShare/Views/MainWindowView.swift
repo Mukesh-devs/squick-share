@@ -66,8 +66,10 @@ struct MainWindowView: View {
 
 /// The window's colours, in light and dark mode.
 enum Theme {
-    /// Snapshots draw the sidebar in a solid colour: the translucent material has nothing behind it.
-    @MainActor static var solidSidebar = false
+    /// Set while rendering snapshots: the sidebar is drawn in a solid colour (the translucent material
+    /// has nothing behind it) and pages are drawn without their scroll view, which a window snapshot
+    /// can't capture. Both look the same as the live window scrolled to the top.
+    @MainActor static var snapshotMode = false
 
     static func dynamic(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -248,7 +250,7 @@ private struct ThisMacCard: View {
 /// The translucent sidebar material Finder and System Settings use.
 private struct SidebarBackground: View {
     var body: some View {
-        if Theme.solidSidebar {
+        if Theme.snapshotMode {
             Theme.sidebarSolid
         } else {
             SidebarMaterial()
@@ -331,15 +333,23 @@ struct PageScroll<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: spacing) {
-                content()
-            }
-            .padding(.horizontal, 28)
-            .padding(.top, 22)
-            .padding(.bottom, 28)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        if Theme.snapshotMode {
+            stack
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .clipped()
+        } else {
+            ScrollView { stack }
         }
+    }
+
+    private var stack: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            content()
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 22)
+        .padding(.bottom, 28)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

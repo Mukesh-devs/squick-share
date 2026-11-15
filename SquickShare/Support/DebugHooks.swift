@@ -164,7 +164,7 @@ extension AppModel {
     private func renderSnapshots() {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("snapshots", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        Theme.solidSidebar = true
+        Theme.snapshotMode = true
         let request = Self.sampleRequest()
         let windowSize = NSSize(width: 1100, height: 720)
         let tallWindow = NSSize(width: 1100, height: 900)
@@ -220,9 +220,11 @@ extension AppModel {
         showMainWindow()
         guard let window = windows.mainWindow else { return }
         window.appearance = NSAppearance(named: appearance)
-        window.setContentSize(size)
-        // Section changes reach the toolbar through the main queue, which doesn't run here.
         windows.updateToolbarItems()
+        // Let the window come on screen first: ordering it in fits it to the screen (CI screens are
+        // small), while resizing it afterwards doesn't.
+        settle(0.3)
+        window.setContentSize(size)
         settle()
         guard let frameView = window.contentView?.superview else { return }
         frameView.layoutSubtreeIfNeeded()

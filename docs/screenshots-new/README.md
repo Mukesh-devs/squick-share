@@ -1,6 +1,6 @@
 # New UI screenshots (for review)
 
-Rendered from the app with `./scripts/make-screenshots.sh --out docs/screenshots-new` on macOS 15 (CI),
+Rendered from the app with `./scripts/make-screenshots.sh --out docs/screenshots-new` on macOS 15 (CI; the CI screen is small, so the busy pages are cut off at the bottom),
 at 2x, with neutral sample data (device name "MacBook Pro", sample phones). Nothing here is used by the
 README or the documentation site yet; `docs/images/` still holds the old popover screenshots.
 

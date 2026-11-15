@@ -435,21 +435,26 @@ struct HeroCard<Content: View>: View {
             .padding(.vertical, 22)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
-                ZStack {
-                    Theme.brand
-                    // Two faint rings, like ripples.
-                    Circle()
-                        .strokeBorder(Color.white.opacity(0.13), lineWidth: 1)
-                        .frame(width: 420, height: 420)
-                        .offset(x: 260)
-                    Circle()
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                        .frame(width: 560, height: 560)
-                        .offset(x: 330)
-                    if lifted { Color.white.opacity(0.10) }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .shadow(color: Theme.brandBottom.opacity(0.28), radius: 12, y: 6)
+                // The gradient takes the card's size; the rings are drawn over it and clipped to it,
+                // so they never make the background bigger than the card.
+                Theme.brand
+                    .overlay {
+                        ZStack {
+                            // Two faint rings, like ripples.
+                            Circle()
+                                .strokeBorder(Color.white.opacity(0.13), lineWidth: 1)
+                                .frame(width: 420, height: 420)
+                                .offset(x: 260)
+                            Circle()
+                                .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                                .frame(width: 560, height: 560)
+                                .offset(x: 330)
+                        }
+                        .allowsHitTesting(false)
+                    }
+                    .overlay { if lifted { Color.white.opacity(0.10) } }
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .shadow(color: Theme.brandBottom.opacity(0.28), radius: 12, y: 6)
             }
             .overlay {
                 if dashed {
@@ -703,7 +708,7 @@ struct RequestStrip: View {
                     DeviceGlyph(type: request.device.type, size: 38)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(request.device.name) wants to share").font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                        Text("\(Format.countSummary(files: request.files.count, texts: request.texts.count, bytes: request.totalBytes)) · PIN \(request.pin)")
+                        Text("\(request.offerSummary) · PIN \(request.pin)")
                             .font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)

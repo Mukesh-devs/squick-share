@@ -60,6 +60,12 @@ final class AppModel: ObservableObject {
     @Published var notice: String?
     /// The main window's page (kept here so it survives closing and reopening the window).
     @Published var section: MainSection = .send
+    /// The "Send Text" sheet is open.
+    @Published var isComposingText = false
+    enum HistoryFilter: String, CaseIterable { case all, received, sent }
+    @Published var historyFilter: HistoryFilter = .all
+    @Published var historyQuery = ""
+    @Published var settingsQuery = ""
     /// The selected Settings tab.
     @Published var settingsTab: SettingsTab = .general
     /// Updated once a second, only while the "Visible for 10 minutes" countdown runs.
@@ -501,7 +507,9 @@ final class AppModel: ObservableObject {
         let names = request.files.map(\.name)
         transfers.insert(ActiveTransfer(id: request.id, direction: .incoming, deviceName: request.device.name,
                                         deviceType: request.device.type, summary: Format.summary(files: names, texts: request.texts.count),
-                                        phase: .transferring, totalBytes: request.totalBytes), at: 0)
+                                        phase: .transferring, totalBytes: request.totalBytes,
+                                        kinds: request.files.map { DocKind(fileName: $0.name) }
+                                            + request.texts.map { $0.kind == .url ? DocKind.link : DocKind.text }), at: 0)
         receiver?.respond(to: request.id, accept: true, destination: settings.downloadFolder)
     }
 
@@ -562,7 +570,8 @@ final class AppModel: ObservableObject {
         addRecent(RecentTransfer(
             id: id, date: Date(), direction: transfer.direction, deviceName: transfer.deviceName,
             itemNames: transfer.direction == .incoming ? names : [transfer.summary],
-            fileURLs: transfer.savedFiles, text: transfer.texts.first, succeeded: error == nil, message: error?.userMessage))
+            fileURLs: transfer.savedFiles, text: transfer.texts.first, succeeded: error == nil, message: error?.userMessage,
+            kinds: transfer.kinds, totalBytes: transfer.totalBytes > 0 ? transfer.totalBytes : nil, deviceType: transfer.deviceType))
         notifyResult(of: transfer, error: error)
 
         // Finished rows stay briefly, then move to Recent.
@@ -607,7 +616,36 @@ final class AppModel: ObservableObject {
     private func addRecent(_ recent: RecentTransfer) {
         recents.insert(recent, at: 0)
         if recents.count > 30 { recents.removeLast(recents.count - 30) }
+        saveRecents()
+    }
+
+    private func saveRecents() {
         UserDefaults.standard.set(try? JSONEncoder().encode(recents), forKey: "recents")
+    }
+
+    func removeRecent(_ recent: RecentTransfer) {
+        recents.removeAll { $0.id == recent.id }
+        saveRecents()
+    }
+
+    /// History, after the toolbar's filter and search.
+    var filteredRecents: [RecentTransfer] {
+        let query = historyQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return recents.filter { recent in
+            switch historyFilter {
+            case .all: break
+            case .received: if recent.direction != .incoming { return false }
+            case .sent: if recent.direction != .outgoing { return false }
+            }
+            guard !query.isEmpty else { return true }
+            return ([recent.title, recent.deviceName, recent.text ?? ""] + recent.itemNames)
+                .contains { $0.localizedCaseInsensitiveContains(query) }
+        }
+    }
+
+    /// Puts the cursor in the toolbar's search field (History and Settings).
+    func focusSearch() {
+        windows.focusSearch()
     }
 
     func clearRecents() {
@@ -734,6 +772,15 @@ final class AppModel: ObservableObject {
         return Format.summary(files: files, texts: items.count - files.count)
     }
 
+    static func kinds(of items: [SendItem]) -> [DocKind] {
+        items.map { item in
+            switch item {
+            case .file(let url, _): return DocKind(fileName: url.lastPathComponent)
+            case .text(let text): return DocKind(text: text)
+            }
+        }
+    }
+
     static func bytes(of items: [SendItem]) -> Int64 {
         items.reduce(Int64(0)) { total, item in
             guard case .file(let url, _) = item else { return total }
@@ -780,7 +827,8 @@ final class AppModel: ObservableObject {
         outgoing[transfer.id] = transfer
         let name = qr.flatMap { device.qrMatch($0) } ?? device.name ?? "Device"
         transfers.insert(ActiveTransfer(id: transfer.id, direction: .outgoing, deviceName: name, deviceType: device.type,
-                                        summary: Self.summary(of: items), phase: .connecting, targetID: device.id), at: 0)
+                                        summary: Self.summary(of: items), phase: .connecting, targetID: device.id,
+                                        kinds: Self.kinds(of: items)), at: 0)
         diagnostics.info("app", "sending to endpoint \(device.endpointID) type=\(device.type) via \(qr == nil ? "list" : "QR")")
     }
 
@@ -903,48 +951,58 @@ final class AppModel: ObservableObject {
     }
 
     #if DEBUG
-    /// Fills the UI with sample data for snapshot rendering.
+    /// Fills the UI with sample data for snapshot rendering (the same scene as the design mockups).
     func debugLoadSampleState(request: IncomingTransferRequest) {
         pendingRequests = [request]
-        let pixel = DiscoveredDevice.preview(name: "Pixel 9", type: .phone)
         let tablet = DiscoveredDevice.preview(name: "Galaxy Tab S9", type: .tablet)
-        let laptop = DiscoveredDevice.preview(name: "Office PC", type: .laptop)
-        nearbyDevices = [pixel, tablet, laptop]
-        var receiving = ActiveTransfer(id: UUID(), direction: .incoming, deviceName: "Redmi Note 13", deviceType: .phone,
-                                       summary: "3 files", phase: .transferring, bytes: 61_000_000, totalBytes: 187_000_000)
+        let pixel = DiscoveredDevice.preview(name: "Pixel 9", type: .phone)
+        let office = DiscoveredDevice.preview(name: "Office PC", type: .laptop)
+        let redmi = DiscoveredDevice.preview(name: "Redmi Note 13", type: .phone)
+        nearbyDevices = [tablet, pixel, office, redmi]
+        let photos = [DocKind(fileName: "a.jpg"), DocKind(fileName: "b.jpg")]
+        var receiving = ActiveTransfer(id: UUID(), direction: .incoming, deviceName: "Pixel 9", deviceType: .phone,
+                                       summary: "3 files", phase: .transferring, bytes: 61_000_000, totalBytes: 187_000_000,
+                                       kinds: photos + [DocKind(fileName: "c.mov")])
         receiving.meter.add(0, at: Date().addingTimeInterval(-2))
         receiving.meter.add(61_000_000)
         var sending = ActiveTransfer(id: UUID(), direction: .outgoing, deviceName: "Galaxy Tab S9", deviceType: .tablet,
                                      summary: "3 files", phase: .transferring, bytes: 24_100_000, totalBytes: 28_400_000,
-                                     targetID: tablet.id)
+                                     targetID: tablet.id, kinds: photos + [DocKind(fileName: "c.pdf")])
         sending.meter.add(0, at: Date().addingTimeInterval(-1))
         sending.meter.add(24_100_000)
         transfers = [
-            receiving,
             sending,
+            receiving,
             ActiveTransfer(id: UUID(), direction: .outgoing, deviceName: "Pixel 9", deviceType: .phone,
-                           summary: "holiday.mov", phase: .waitingForAcceptance(pin: "1234"), targetID: pixel.id),
+                           summary: "holiday.mov", phase: .waitingForAcceptance(pin: "1234"), targetID: pixel.id,
+                           kinds: [DocKind(fileName: "holiday.mov")]),
             ActiveTransfer(id: UUID(), direction: .outgoing, deviceName: "Office PC", deviceType: .laptop,
-                           summary: "report.pdf", phase: .failed("The other device declined the transfer."), targetID: laptop.id),
+                           summary: "report.pdf", phase: .completed, bytes: 2_100_000, totalBytes: 2_100_000,
+                           targetID: office.id, kinds: [DocKind(fileName: "report.pdf")]),
         ]
+        let today = Calendar.current.startOfDay(for: Date())
         recents = [
-            RecentTransfer(id: UUID(), date: Date().addingTimeInterval(-300), direction: .incoming, deviceName: "Redmi Note 13",
-                           itemNames: ["IMG_0001.jpg", "IMG_0002.jpg"], fileURLs: [URL(fileURLWithPath: "/tmp/IMG_0001.jpg")],
-                           text: nil, succeeded: true, message: nil),
-            RecentTransfer(id: UUID(), date: Date().addingTimeInterval(-4000), direction: .incoming, deviceName: "Redmi Note 13",
-                           itemNames: [], fileURLs: [], text: "https://example.com", succeeded: true, message: nil),
-            RecentTransfer(id: UUID(), date: Date().addingTimeInterval(-90000), direction: .outgoing, deviceName: "Pixel 9",
+            RecentTransfer(id: UUID(), date: today.addingTimeInterval(9 * 3600 + 15 * 60), direction: .incoming, deviceName: "Redmi Note 13",
+                           itemNames: ["VID_20261115_0915.mp4"], fileURLs: [URL(fileURLWithPath: "/tmp/VID_20261115_0915.mp4")],
+                           text: nil, succeeded: true, message: nil,
+                           kinds: [DocKind(fileName: "v.mp4")], totalBytes: 182_000_000, deviceType: .phone),
+            RecentTransfer(id: UUID(), date: today.addingTimeInterval(9 * 3600 + 12 * 60), direction: .incoming, deviceName: "Redmi Note 13",
+                           itemNames: ["IMG_20261115_0912.jpg"], fileURLs: [URL(fileURLWithPath: "/tmp/IMG_20261115_0912.jpg")],
+                           text: nil, succeeded: true, message: nil,
+                           kinds: [DocKind(fileName: "i.jpg")], totalBytes: 4_800_000, deviceType: .phone),
+            RecentTransfer(id: UUID(), date: today.addingTimeInterval(8 * 3600 + 40 * 60), direction: .incoming, deviceName: "Pixel 9",
+                           itemNames: [], fileURLs: [], text: "https://example.com/article", succeeded: true, message: nil,
+                           kinds: [.link], deviceType: .phone),
+            RecentTransfer(id: UUID(), date: today.addingTimeInterval(-6 * 3600), direction: .outgoing, deviceName: "Pixel 9",
+                           itemNames: ["Project Report.pdf"], fileURLs: [], text: nil, succeeded: true, message: nil,
+                           kinds: [DocKind(fileName: "r.pdf")], totalBytes: 2_100_000, deviceType: .phone),
+            RecentTransfer(id: UUID(), date: today.addingTimeInterval(-6.3 * 3600), direction: .outgoing, deviceName: "Pixel 9",
                            itemNames: ["Presentation.key"], fileURLs: [], text: nil, succeeded: false,
-                           message: "The other device declined the transfer."),
+                           message: "The other device declined the transfer.",
+                           kinds: [DocKind(fileName: "p.key")], totalBytes: 48_000_000, deviceType: .phone),
         ]
-        pendingSendItems = [.text("Hello from the Mac")]
-        receivedText = ReceivedTextItem(id: UUID(), text: "https://example.com/article", kind: .url, deviceName: "Pixel 9")
-    }
-
-    /// Text arriving from a phone, as if it came over the network.
-    func debugReceiveText(_ text: String) {
-        presentReceivedText(ReceivedTextItem(id: UUID(), text: text, kind: Format.webURL(text) != nil ? .url : .text,
-                                             deviceName: "Test Phone"))
+        pendingSendItems = []
+        receivedText = nil
     }
 
     /// Only nearby devices and recent transfers: what the window looks like most of the time.
@@ -969,6 +1027,13 @@ final class AppModel: ObservableObject {
         receiverStatus = .advertising(port: 0)
         browserStatus = .browsing
         if settings.useBluetooth { beaconStatus = .listening }
+        if !settings.hasSeenWelcome { settings.hasSeenWelcome = true }
+    }
+
+    /// Text arriving from a phone, as if it came over the network.
+    func debugReceiveText(_ text: String) {
+        presentReceivedText(ReceivedTextItem(id: UUID(), text: text, kind: Format.webURL(text) != nil ? .url : .text,
+                                             deviceName: "Test Phone"))
     }
 
     #endif

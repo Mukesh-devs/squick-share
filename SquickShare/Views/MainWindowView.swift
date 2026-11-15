@@ -1,31 +1,41 @@
+import AppKit
 import QuickShareCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The main window: a sidebar with Send, Receive, History and Settings, and the chosen page.
+/// The main window: a sidebar (Send, Receive, History, Settings and a "This Mac" card) next to the
+/// chosen page, under a native toolbar whose items follow the page (see WindowCoordinator).
 ///
-/// A plain sidebar list next to the page, rather than NavigationSplitView: the window keeps one fixed
+/// A plain sidebar next to the page, rather than NavigationSplitView: the window keeps one fixed
 /// layout and never resizes itself, which keeps it clear of the SwiftUI window-resizing loops seen on
 /// macOS 26 (see WindowCoordinator).
 struct MainWindowView: View {
     @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var settings: AppSettings
     @State private var dropTargeted = false
-    @State private var composingText = false
 
     var body: some View {
-        // The title bar is transparent and the window content runs under it (WindowCoordinator):
-        // backgrounds fill that strip, so the sidebar reaches the top under the window buttons, while
-        // the content itself stays in the safe area below it.
+        // The title bar is transparent and the window content runs under it: backgrounds fill that
+        // strip, so the sidebar reaches the top under the window buttons, while the content itself
+        // stays in the safe area below the toolbar.
         HStack(spacing: 0) {
             Sidebar()
-                .frame(width: 200)
-            Divider()
+                .frame(width: 220)
+                // The welcome sheet hangs off the sidebar, the text sheet off the page: one sheet per view.
+                .sheet(isPresented: welcomeShown) {
+                    WelcomeSheet().environmentObject(model).environmentObject(settings)
+                }
+            Rectangle()
+                .fill(Theme.separator)
+                .frame(width: 1)
                 .ignoresSafeArea()
-            page
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+            ContentPane()
+                .environment(\.windowDropTargeted, dropTargeted)
+                .sheet(isPresented: $model.isComposingText) {
+                    ComposeTextSheet().environmentObject(model)
+                }
         }
-        .frame(minWidth: 700, maxWidth: .infinity, minHeight: 480, maxHeight: .infinity)
+        .frame(minWidth: 760, maxWidth: .infinity, minHeight: 520, maxHeight: .infinity)
         // Files dropped anywhere in the window go to the send list.
         .onDrop(of: DropLoader.types, isTargeted: $dropTargeted) { providers in
             DropLoader.load(providers) { files, texts in
@@ -35,25 +45,80 @@ struct MainWindowView: View {
             }
         }
         .overlay {
-            if dropTargeted {
+            if dropTargeted, model.section != .send {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(Color.accentColor, lineWidth: 3)
                     .padding(6)
+                    .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
         }
-        .sheet(isPresented: $composingText) {
-            ComposeTextSheet().environmentObject(model)
-        }
     }
 
-    @ViewBuilder private var page: some View {
-        switch model.section {
-        case .send: SendPage(composingText: $composingText)
-        case .receive: ReceivePage()
-        case .history: HistoryPage()
-        case .settings: SettingsPage()
-        }
+    /// Shown once, the first time the window opens.
+    private var welcomeShown: Binding<Bool> {
+        Binding(get: { !settings.hasSeenWelcome },
+                set: { shown in if !shown, !settings.hasSeenWelcome { settings.hasSeenWelcome = true } })
+    }
+}
+
+// MARK: - Theme
+
+/// The window's colours, in light and dark mode.
+enum Theme {
+    /// Snapshots draw the sidebar in a solid colour: the translucent material has nothing behind it.
+    @MainActor static var solidSidebar = false
+
+    static func dynamic(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+        })
+    }
+
+    static func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> NSColor {
+        NSColor(srgbRed: red / 255, green: green / 255, blue: blue / 255, alpha: alpha)
+    }
+
+    static let page = dynamic(light: rgb(245, 245, 247), dark: rgb(30, 30, 32))
+    static let card = dynamic(light: .white, dark: rgb(42, 42, 45))
+    static let cardBorder = dynamic(light: rgb(0, 0, 0, 0.06), dark: rgb(255, 255, 255, 0.08))
+    static let separator = dynamic(light: rgb(0, 0, 0, 0.09), dark: rgb(0, 0, 0, 0.5))
+    static let toolbar = dynamic(light: rgb(251, 251, 253, 0.96), dark: rgb(38, 38, 41, 0.96))
+    static let sidebarSolid = dynamic(light: rgb(233, 233, 238), dark: rgb(40, 40, 43))
+    static let neutralCircle = dynamic(light: rgb(242, 244, 248), dark: rgb(58, 58, 62))
+    static let neutralRing = dynamic(light: rgb(0, 0, 0, 0.06), dark: rgb(255, 255, 255, 0.08))
+    static let fill = dynamic(light: rgb(0, 0, 0, 0.06), dark: rgb(255, 255, 255, 0.10))
+    static let rowSelection = dynamic(light: rgb(0, 116, 240, 0.10), dark: rgb(48, 150, 255, 0.20))
+    static let accentSoft = dynamic(light: rgb(0, 116, 240, 0.12), dark: rgb(48, 150, 255, 0.20))
+    static let successText = dynamic(light: rgb(31, 157, 85), dark: rgb(48, 209, 88))
+    static let warningText = dynamic(light: rgb(201, 100, 0), dark: rgb(255, 159, 10))
+    static let failureText = dynamic(light: rgb(215, 0, 21), dark: rgb(255, 105, 97))
+
+    static let brandTop = Color(red: 28 / 255, green: 160 / 255, blue: 1)
+    static let brandMid = Color(red: 10 / 255, green: 116 / 255, blue: 245 / 255)
+    static let brandBottom = Color(red: 0, green: 82 / 255, blue: 224 / 255)
+    static let success = Color(red: 48 / 255, green: 209 / 255, blue: 88 / 255)
+
+    /// The app icon's blue.
+    static var brand: LinearGradient {
+        LinearGradient(colors: [brandTop, brandMid, brandBottom], startPoint: UnitPoint(x: 0.25, y: 0), endPoint: UnitPoint(x: 0.75, y: 1))
+    }
+
+    /// The gradient behind a coloured settings or welcome icon square.
+    static func tile(_ top: Color, _ bottom: Color) -> LinearGradient {
+        LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+    }
+}
+
+/// Whether files are being dragged over the window (the Send page highlights its drop area).
+private struct WindowDropTargetedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var windowDropTargeted: Bool {
+        get { self[WindowDropTargetedKey.self] }
+        set { self[WindowDropTargetedKey.self] = newValue }
     }
 }
 
@@ -63,63 +128,135 @@ private struct Sidebar: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            List(selection: selection) {
-                Section {
-                    ForEach([MainSection.send, .receive, .history]) { row($0) }
-                }
-                Section {
-                    row(.settings)
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            Divider()
-            SidebarStatus()
+        VStack(alignment: .leading, spacing: 2) {
+            SidebarHeading(title: "Share")
+            SidebarRow(section: .send)
+            SidebarRow(section: .receive)
+            SidebarHeading(title: "Library").padding(.top, 10)
+            SidebarRow(section: .history)
+            Spacer(minLength: 12)
+            SidebarRow(section: .settings)
+            ThisMacCard().padding(.top, 8)
         }
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+        .padding(.bottom, 12)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(SidebarBackground().ignoresSafeArea())
-    }
-
-    private func row(_ section: MainSection) -> some View {
-        Label(section.title, systemImage: section.symbol)
-            .badge(model.badge(for: section))
-            .tag(section)
-            .accessibilityHint(section == .receive && !model.pendingRequests.isEmpty ? "A request is waiting" : "")
-    }
-
-    /// The list needs an optional selection; clicking empty space must not deselect the page.
-    private var selection: Binding<MainSection?> {
-        Binding(get: { model.section },
-                set: { new in if let new, new != model.section { model.section = new } })
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Sidebar")
     }
 }
 
-/// Whether this Mac can be found, at the bottom of the sidebar. Clicking it opens Receive.
-private struct SidebarStatus: View {
+private struct SidebarHeading: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+private struct SidebarRow: View {
+    @EnvironmentObject private var model: AppModel
+    let section: MainSection
+    @State private var hovering = false
+
+    var body: some View {
+        let selected = model.section == section
+        let badge = model.badge(for: section)
+        Button { if model.section != section { model.section = section } } label: {
+            HStack(spacing: 9) {
+                Image(systemName: section.symbol)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(selected ? Color.white : Color.accentColor)
+                    .frame(width: 20)
+                Text(section.title)
+                    .font(.system(size: 13.5, weight: .medium))
+                    .foregroundStyle(selected ? Color.white : Color.primary)
+                Spacer(minLength: 4)
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(selected ? Color.white : Color.secondary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(selected ? Color.white.opacity(0.25) : Theme.fill))
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(selected ? Color.accentColor : (hovering ? Theme.fill : Color.clear))
+                    .shadow(color: selected ? Color.accentColor.opacity(0.3) : .clear, radius: 4, y: 2)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityLabel(section.title)
+        .accessibilityValue(badge > 0 ? "\(badge)" : "")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        .accessibilityHint(section == .receive && !model.pendingRequests.isEmpty ? "A request is waiting" : "")
+    }
+}
+
+/// This Mac's name and whether it can be found. Clicking it opens Receive.
+private struct ThisMacCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
         Button { model.section = .receive } label: {
-            HStack(alignment: .top, spacing: 8) {
-                StatusDot(color: model.statusColor).padding(.top, 5)
-                Text(model.statusLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+            HStack(spacing: 10) {
+                Image(systemName: "laptopcomputer")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.brand))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(model.identity.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Circle().fill(model.statusColor).frame(width: 7, height: 7)
+                        Text(model.cardStatus)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
                 Spacer(minLength: 0)
             }
-            .padding(12)
+            .padding(10)
+            .card(cornerRadius: 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("Who can see this Mac")
-        .accessibilityLabel("Status: \(model.statusLine)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("This Mac, \(model.identity.name). \(model.statusLine)")
+        .accessibilityAddTraits(.isButton)
     }
 }
 
 /// The translucent sidebar material Finder and System Settings use.
-private struct SidebarBackground: NSViewRepresentable {
+private struct SidebarBackground: View {
+    var body: some View {
+        if Theme.solidSidebar {
+            Theme.sidebarSolid
+        } else {
+            SidebarMaterial()
+        }
+    }
+}
+
+private struct SidebarMaterial: NSViewRepresentable {
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = .sidebar
@@ -131,49 +268,351 @@ private struct SidebarBackground: NSViewRepresentable {
     func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
 
+extension AppModel {
+    /// Under the Mac's name in the sidebar: "Visible to everyone", "Hidden", "Visible for 9:41".
+    var cardStatus: String {
+        if localNetworkDenied { return "Local network access is off" }
+        if !hasNetwork { return "No network" }
+        if case .failed = receiverStatus { return "Can't be discovered" }
+        switch settings.visibility {
+        case .everyone: return "Visible to everyone"
+        case .hidden: return "Hidden"
+        case .temporary: return "Visible for \(Format.countdown((settings.temporaryVisibilityUntil ?? now).timeIntervalSince(now)))"
+        }
+    }
+
+    /// Whether `StatusBanners` has something to show.
+    var hasStatusBanner: Bool {
+        if case .failed = receiverStatus { return true }
+        return localNetworkDenied || !hasNetwork || notice != nil || receivedText != nil
+    }
+}
+
+// MARK: - Content pane
+
+/// The page, with a bar behind the toolbar items.
+private struct ContentPane: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .top) {
+                Theme.page.ignoresSafeArea()
+                page
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The toolbar area: a light bar with a hairline, like Mail and the App Store.
+                VStack(spacing: 0) {
+                    Theme.toolbar
+                    Rectangle().fill(Theme.separator).frame(height: 1)
+                }
+                .frame(height: geometry.safeAreaInsets.top + 1)
+                .offset(y: -geometry.safeAreaInsets.top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
+    }
+
+    @ViewBuilder private var page: some View {
+        switch model.section {
+        case .send: SendPage()
+        case .receive: ReceivePage()
+        case .history: HistoryPage()
+        case .settings: SettingsPage()
+        }
+    }
+}
+
 // MARK: - Page building blocks
 
 /// A scrolling page with standard margins.
-private struct Page<Content: View>: View {
+struct PageScroll<Content: View>: View {
+    var spacing: CGFloat = 16
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: spacing) {
                 content()
             }
-            .padding(24)
+            .padding(.horizontal, 28)
+            .padding(.top, 22)
+            .padding(.bottom, 28)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
 
-/// A page's title, a line about what it is for, and its main actions.
-struct PageHeader<Actions: View>: View {
+/// A page's large title and a line about what it is for.
+struct PageTitle: View {
     let title: String
     let subtitle: String
-    @ViewBuilder let actions: () -> Actions
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.title.weight(.semibold))
-                Text(subtitle).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 28, weight: .bold))
+                .accessibilityAddTraits(.isHeader)
+            Text(subtitle)
+                .font(.system(size: 13.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.bottom, 2)
+    }
+}
+
+/// A section title, with an optional link on the right.
+struct SectionHeader: View {
+    let title: String
+    var linkTitle: String? = nil
+    var link: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            if let linkTitle, let link {
+                Button(linkTitle, action: link)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
             }
-            Spacer(minLength: 12)
-            actions()
+        }
+        .padding(.top, 6)
+        .padding(.horizontal, 2)
+    }
+}
+
+/// A white (dark grey in dark mode) rounded card with a hairline and a soft shadow.
+struct CardBackground: ViewModifier {
+    var cornerRadius: CGFloat = 14
+    var highlighted = false
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Theme.card)
+                    .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(highlighted ? Color.accentColor.opacity(0.35) : Theme.cardBorder,
+                                  lineWidth: highlighted ? 1.5 : 1)
+            }
+    }
+}
+
+extension View {
+    func card(cornerRadius: CGFloat = 14, highlighted: Bool = false) -> some View {
+        modifier(CardBackground(cornerRadius: cornerRadius, highlighted: highlighted))
+    }
+}
+
+/// The blue card at the top of Send and Receive, in the app icon's colours.
+struct HeroCard<Content: View>: View {
+    var dashed = false
+    var lifted = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .foregroundStyle(.white)
+            .padding(.horizontal, 26)
+            .padding(.vertical, 22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                ZStack {
+                    Theme.brand
+                    // Two faint rings, like ripples.
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.13), lineWidth: 1)
+                        .frame(width: 420, height: 420)
+                        .offset(x: 260)
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                        .frame(width: 560, height: 560)
+                        .offset(x: 330)
+                    if lifted { Color.white.opacity(0.10) }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .shadow(color: Theme.brandBottom.opacity(0.28), radius: 12, y: 6)
+            }
+            .overlay {
+                if dashed {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.white.opacity(lifted ? 0.95 : 0.65),
+                                      style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
+                        .padding(8)
+                }
+            }
+    }
+}
+
+/// The frosted square holding the hero card's symbol.
+struct HeroIcon: View {
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 28, weight: .regular))
+            .foregroundStyle(.white)
+            .frame(width: 72, height: 72)
+            .background(RoundedRectangle(cornerRadius: 17, style: .continuous).fill(Color.white.opacity(0.2)))
+            .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.white.opacity(0.35), lineWidth: 1))
+            .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Buttons
+
+/// Buttons drawn by the app, so they look the same in active and inactive windows (the system's
+/// prominent style turns white-on-white when the window isn't key).
+struct PillButtonStyle: ButtonStyle {
+    enum Kind {
+        /// Blue, the main action.
+        case primary
+        /// White with a hairline.
+        case secondary
+        /// Grey fill.
+        case gray
+        /// Translucent white, on the blue hero card.
+        case glass
+    }
+
+    var kind: Kind = .secondary
+    var large = false
+    /// Rounded rectangle instead of a capsule.
+    var rounded = false
+    /// Fill the width offered instead of hugging the label.
+    var stretch = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        PillButton(configuration: configuration, style: self)
+    }
+}
+
+private struct PillButton: View {
+    let configuration: ButtonStyleConfiguration
+    let style: PillButtonStyle
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: style.rounded ? 8 : 100, style: .continuous)
+        label
+            .font(.system(size: style.large ? 13.5 : 12.5, weight: .semibold))
+            .lineLimit(1)
+            .padding(.horizontal, style.large ? 18 : 12)
+            .frame(maxWidth: style.stretch ? .infinity : nil)
+            .frame(height: style.large ? 34 : 28)
+            .foregroundStyle(foreground)
+            .background(shape.fill(background))
+            .overlay(shape.strokeBorder(border, lineWidth: style.kind == .glass ? 1 : 0.5))
+            .shadow(color: shadow, radius: style.kind == .primary ? 4 : 1.5, y: style.kind == .primary ? 2 : 0.5)
+            .contentShape(shape)
+            .opacity(isEnabled ? 1 : 0.45)
+            .onHover { hovering = $0 }
+    }
+
+    @ViewBuilder private var label: some View {
+        if style.stretch {
+            configuration.label
+        } else {
+            configuration.label.fixedSize()
+        }
+    }
+
+    private var pressed: Bool { configuration.isPressed }
+
+    private var foreground: Color {
+        switch style.kind {
+        case .primary, .glass: return .white
+        case .secondary, .gray: return .primary
+        }
+    }
+
+    private var background: Color {
+        switch style.kind {
+        case .primary: return Color.accentColor.opacity(pressed ? 0.8 : (hovering ? 0.92 : 1))
+        case .secondary: return pressed ? Theme.fill : Theme.card
+        case .gray: return pressed || hovering ? Color.primary.opacity(pressed ? 0.16 : 0.11) : Theme.fill
+        case .glass: return Color.white.opacity(pressed ? 0.32 : (hovering ? 0.28 : 0.22))
+        }
+    }
+
+    private var border: Color {
+        switch style.kind {
+        case .primary, .gray: return .clear
+        case .secondary: return Color.primary.opacity(0.14)
+        case .glass: return Color.white.opacity(0.35)
+        }
+    }
+
+    private var shadow: Color {
+        switch style.kind {
+        case .primary: return Color.accentColor.opacity(0.3)
+        case .secondary: return .black.opacity(0.06)
+        case .gray, .glass: return .clear
         }
     }
 }
 
-extension PageHeader where Actions == EmptyView {
-    init(title: String, subtitle: String) {
-        self.init(title: title, subtitle: subtitle) { EmptyView() }
+/// A toolbar button: a symbol and a title on a pill (the main action in blue).
+struct ToolbarPill: View {
+    let title: String
+    let symbol: String
+    var prominent = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                Text(title)
+            }
+        }
+        .buttonStyle(PillButtonStyle(kind: prominent ? .primary : .secondary))
+        .padding(.horizontal, 2)
+        .padding(.vertical, 4)
     }
 }
 
+/// Opens the folder received files are saved to (named after it).
+struct DownloadsToolbarPill: View {
+    @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        ToolbarPill(title: settings.downloadFolder.lastPathComponent, symbol: "folder") { model.openDownloadFolder() }
+            .help("Show the folder received files are saved to")
+    }
+}
+
+/// All, Received, Sent: the History toolbar's filter.
+struct HistoryFilterPicker: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        Picker("Show", selection: $model.historyFilter) {
+            Text("All").tag(AppModel.HistoryFilter.all)
+            Text("Received").tag(AppModel.HistoryFilter.received)
+            Text("Sent").tag(AppModel.HistoryFilter.sent)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Banners
+
 /// Problems that stop discovery, and one-off notices.
-private struct StatusBanners: View {
+struct StatusBanners: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
@@ -182,6 +621,7 @@ private struct StatusBanners: View {
                 Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
                        text: "Local network access is off, so squick-share can't find or be found by nearby devices.") {
                     Button("Open System Settings") { model.openLocalNetworkSettings() }
+                        .buttonStyle(PillButtonStyle(kind: .secondary))
                 }
             } else if !model.hasNetwork {
                 Banner(symbol: "wifi.slash", tint: .orange,
@@ -193,482 +633,25 @@ private struct StatusBanners: View {
             if let item = model.receivedText {
                 Banner(symbol: item.webURL != nil ? "link" : "text.bubble", tint: .accentColor,
                        text: "\(item.deviceName) sent \(item.webURL != nil ? "a link" : "text"): \(String(item.text.prefix(300)))") {
-                    HStack {
+                    HStack(spacing: 8) {
                         if item.webURL != nil {
                             Button("Open Link") { model.openReceivedText(item) }
+                                .buttonStyle(PillButtonStyle(kind: .primary))
                         }
                         Button("Copy") { model.copyReceivedText(item) }
+                            .buttonStyle(PillButtonStyle(kind: .secondary))
                         Button("Dismiss") { model.dismissReceivedText() }
-                            .buttonStyle(.link)
+                            .buttonStyle(PillButtonStyle(kind: .gray))
                     }
                 }
             }
             if let notice = model.notice {
-                Banner(symbol: "info.circle.fill", tint: .blue, text: notice) {
+                Banner(symbol: "info.circle.fill", tint: .accentColor, text: notice) {
                     Button("OK") { model.notice = nil }
+                        .buttonStyle(PillButtonStyle(kind: .secondary))
                 }
             }
         }
-    }
-}
-
-/// A request waiting for an answer, shown on pages other than Receive so it is never missed.
-private struct RequestStrip: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ForEach(model.pendingRequests) { request in
-                HStack(spacing: 10) {
-                    Image(systemName: Format.deviceSymbol(request.device.type))
-                        .font(.title3)
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("\(request.device.name) wants to share").font(.callout.weight(.semibold)).lineLimit(1)
-                        Text("\(Format.countSummary(files: request.files.count, texts: request.texts.count, bytes: request.totalBytes)) · PIN \(request.pin)")
-                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                    Spacer(minLength: 8)
-                    Button("Details") { model.section = .receive }
-                        .buttonStyle(.link)
-                    Button("Decline") { model.decline(request) }
-                    Button("Accept") { model.accept(request, trust: false) }
-                }
-                .padding(12)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.accentColor.opacity(0.1)))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.accentColor.opacity(0.25)))
-                .accessibilityElement(children: .contain)
-            }
-        }
-    }
-}
-
-// MARK: - Send
-
-private struct SendPage: View {
-    @EnvironmentObject private var model: AppModel
-    @Binding var composingText: Bool
-    @State private var showGuide = false
-
-    private let columns = [GridItem(.adaptive(minimum: 118, maximum: 150), spacing: 12, alignment: .top)]
-
-    var body: some View {
-        let outgoing = model.transfers(.outgoing)
-        Page {
-            PageHeader(title: "Send", subtitle: subtitle) {
-                Button { model.chooseFiles() } label: {
-                    Label("Choose Files…", systemImage: "doc.badge.plus")
-                }
-                .help("Pick files or folders to send (⌘O)")
-                Button { composingText = true } label: {
-                    Label("Send Text…", systemImage: "text.bubble")
-                }
-                .help("Send a link or a note")
-            }
-            if model.hasStatusBanner { StatusBanners() }
-            if !model.pendingRequests.isEmpty { RequestStrip() }
-            if !model.pendingSendItems.isEmpty { SendTray() }
-
-            WindowSection(title: "Nearby Devices") {
-                if model.localNetworkDenied {
-                    EmptyStateView(symbol: "network.slash", title: "Can't look for devices",
-                                   message: "Allow squick-share to find devices on your local network in System Settings.")
-                } else if let qr = model.qrSession {
-                    QRCodePanel(session: qr)
-                } else if model.visibleDevices.isEmpty {
-                    SearchingView()
-                } else {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                        ForEach(model.visibleDevices) { DeviceTile(device: $0) }
-                    }
-                    DisclosureGroup("Phone not listed?", isExpanded: $showGuide) {
-                        PhoneGuide().padding(.top, 8)
-                    }
-                    .font(.callout)
-                }
-            }
-
-            if !outgoing.isEmpty {
-                WindowSection(title: "Sending") {
-                    ForEach(outgoing) { TransferRow(transfer: $0) }
-                }
-            }
-        }
-    }
-
-    private var subtitle: String {
-        if model.pendingSendItems.isEmpty {
-            return "Drop files on a device, or click a device to choose files."
-        }
-        return "Click a device to send \(model.sendSummary)."
-    }
-}
-
-// MARK: - Receive
-
-private struct ReceivePage: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        let incoming = model.transfers(.incoming)
-        Page {
-            PageHeader(title: "Receive", subtitle: "Android phones send to this Mac with Quick Share.")
-            if model.hasStatusBanner { StatusBanners() }
-            VisibilityCard()
-
-            if !model.pendingRequests.isEmpty {
-                WindowSection(title: "Requests") {
-                    ForEach(model.pendingRequests) { request in
-                        IncomingRequestView(request: request, inline: true)
-                            .padding(16)
-                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.08)))
-                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(Color.accentColor.opacity(0.25)))
-                    }
-                }
-            }
-
-            if !incoming.isEmpty {
-                WindowSection(title: "Receiving") {
-                    ForEach(incoming) { TransferRow(transfer: $0) }
-                }
-            }
-
-            WindowSection(title: "Saved To") {
-                SaveLocationRow()
-            }
-
-            WindowSection(title: "How to Send from a Phone") {
-                VStack(alignment: .leading, spacing: 8) {
-                    GuideStep(number: 1, text: "On the phone, share a photo, video or file and choose **Quick Share**.")
-                    GuideStep(number: 2, text: "Tap **\(model.identity.name)**. Both devices must be on the same Wi-Fi network.")
-                    GuideStep(number: 3, text: "Check that both show the same PIN, then click **Accept** here or in the notification.")
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
-            }
-        }
-    }
-}
-
-/// Who can see this Mac, and the control to change it.
-private struct VisibilityCard: View {
-    @EnvironmentObject private var model: AppModel
-    @EnvironmentObject private var settings: AppSettings
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(model.isDiscoverable
-                          ? AnyShapeStyle(LinearGradient(colors: [Color.accentColor.opacity(0.75), Color.accentColor],
-                                                         startPoint: .top, endPoint: .bottom))
-                          : AnyShapeStyle(Color.secondary.opacity(0.35)))
-                    .frame(width: 56, height: 56)
-                Image(systemName: settings.visibility == .hidden ? "antenna.radiowaves.left.and.right.slash" : "antenna.radiowaves.left.and.right")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(.white)
-            }
-            .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(model.statusLine).font(.headline)
-                    Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                }
-                HStack(spacing: 8) {
-                    Text("Allow me to be discovered by:")
-                        .font(.callout)
-                        .fixedSize()
-                    Picker("Allow me to be discovered by", selection: $settings.visibility) {
-                        ForEach(Visibility.allCases) { Text($0.label).tag($0) }
-                    }
-                    .labelsHidden()
-                    .fixedSize()
-                    Button("Announce Again") { model.announceAgain() }
-                        .fixedSize()
-                        .disabled(settings.visibility == .hidden)
-                        .help("Tell nearby phones about this Mac now (useful if a phone just reconnected to Wi-Fi)")
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.04)))
-    }
-
-    private var detail: String {
-        if model.localNetworkDenied || !model.hasNetwork { return "Phones can't see this Mac until this is fixed." }
-        switch settings.visibility {
-        case .everyone: return "Nearby phones on this Wi-Fi network can send to this Mac."
-        case .temporary: return "Nearby phones can send to this Mac until the timer ends."
-        case .hidden: return "Phones can't see this Mac. Choose Everyone to receive files."
-        }
-    }
-}
-
-private struct SaveLocationRow: View {
-    @EnvironmentObject private var model: AppModel
-    @EnvironmentObject private var settings: AppSettings
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: settings.downloadFolder.path))
-                .resizable()
-                .frame(width: 28, height: 28)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(settings.downloadFolder.lastPathComponent).font(.callout.weight(.medium))
-                Text("Received files are never opened automatically.").font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Show in Finder") { model.openDownloadFolder() }
-            Button("Change…") { model.showSettings(tab: .general) }
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
-    }
-}
-
-// MARK: - History
-
-private struct HistoryPage: View {
-    @EnvironmentObject private var model: AppModel
-    @State private var query = ""
-    @State private var selection: UUID?
-    @FocusState private var searchFocused: Bool
-
-    private var filtered: [RecentTransfer] {
-        let terms = query.trimmingCharacters(in: .whitespaces)
-        guard !terms.isEmpty else { return model.recents }
-        return model.recents.filter { recent in
-            ([recent.title, recent.deviceName, recent.text ?? ""] + recent.itemNames)
-                .contains { $0.localizedCaseInsensitiveContains(terms) }
-        }
-    }
-
-    var body: some View {
-        let items = filtered
-        Page {
-            PageHeader(title: "History", subtitle: "Your last 30 transfers. Double-click or press Return to open one.") {
-                if !model.recents.isEmpty {
-                    TextField("Search", text: $query)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 180)
-                        .focused($searchFocused)
-                        .help("Search (⌘F)")
-                        .accessibilityLabel("Search history")
-                    Button("Clear History") { model.clearRecents() }
-                }
-            }
-            if model.hasStatusBanner { StatusBanners() }
-            if !model.pendingRequests.isEmpty { RequestStrip() }
-            if model.recents.isEmpty {
-                EmptyStateView(symbol: "clock", title: "No transfers yet",
-                               message: "Files and links you send or receive appear here.")
-            } else if items.isEmpty {
-                EmptyStateView(symbol: "magnifyingglass", title: "No matches",
-                               message: "Nothing in your history matches “\(query)”.")
-            } else {
-                GroupedList(items: items) { recent in
-                    RecentRow(recent: recent)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(selection == recent.id ? Color.accentColor.opacity(0.18) : Color.clear))
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: 2) { model.open(recent) }
-                        .onTapGesture { selection = recent.id }
-                        .accessibilityAddTraits(selection == recent.id ? .isSelected : [])
-                }
-                Button("Open Downloads Folder") { model.openDownloadFolder() }
-            }
-        }
-        .background {
-            // Keyboard: ⌘F searches; Return opens the selected entry; Escape clears the search.
-            Group {
-                Button("Search") { searchFocused = true }
-                    .keyboardShortcut("f")
-                Button("Open Selected") {
-                    if let id = selection, let recent = model.recents.first(where: { $0.id == id }) { model.open(recent) }
-                }
-                .keyboardShortcut(.return, modifiers: [])
-                .disabled(selection == nil || searchFocused)
-                Button("Clear Search") {
-                    query = ""
-                    searchFocused = false
-                }
-                .keyboardShortcut(.escape, modifiers: [])
-                .disabled(query.isEmpty && !searchFocused)
-            }
-            .opacity(0)
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
-        }
-    }
-}
-
-// MARK: - Settings
-
-private struct SettingsPage: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PageHeader(title: "Settings", subtitle: "Name, visibility, files and more.") {
-                SettingsTabPicker()
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 4)
-            SettingsView(showsTabPicker: false)
-        }
-    }
-}
-
-extension AppModel {
-    /// Whether `StatusBanners` has something to show.
-    var hasStatusBanner: Bool {
-        if case .failed = receiverStatus { return true }
-        return localNetworkDenied || !hasNetwork || notice != nil || receivedText != nil
-    }
-}
-
-/// The files and text waiting to be sent.
-private struct SendTray: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ItemIcons(items: model.pendingSendItems)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.sendSummary).font(.callout.weight(.medium)).lineLimit(1).truncationMode(.middle)
-                Text(model.pendingSendBytes > 0 ? Format.bytes(model.pendingSendBytes) : "Ready to send")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-            if model.qrSession == nil {
-                Button { model.showQRCode() } label: { Image(systemName: "qrcode") }
-                    .buttonStyle(.borderless)
-                    .help("Show a QR code for a phone to scan (experimental)")
-                    .accessibilityLabel("Show QR code")
-            }
-            Button("Clear") { model.clearSendItems() }
-                .accessibilityLabel("Clear items to send")
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.accentColor.opacity(0.08)))
-    }
-}
-
-/// Up to three overlapping file icons.
-private struct ItemIcons: View {
-    let items: [SendItem]
-
-    var body: some View {
-        ZStack {
-            ForEach(Array(items.prefix(3).enumerated()), id: \.offset) { index, item in
-                Image(nsImage: icon(item))
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .offset(x: CGFloat(index) * 7, y: CGFloat(index) * -3)
-            }
-        }
-        .frame(width: 48, height: 36, alignment: .leading)
-        .accessibilityHidden(true)
-    }
-
-    private func icon(_ item: SendItem) -> NSImage {
-        switch item {
-        case .file(let url, _): return NSWorkspace.shared.icon(forFile: url.path)
-        case .text: return NSWorkspace.shared.icon(for: .plainText)
-        }
-    }
-}
-
-/// Shown until the first device appears.
-private struct SearchingView: View {
-    var body: some View {
-        VStack(spacing: 14) {
-            RadarSymbol()
-            VStack(spacing: 4) {
-                Text("Looking for nearby devices…").font(.headline)
-                Text("Android phones appear here while their Quick Share screen is open.")
-                    .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            }
-            PhoneGuide()
-                .frame(maxWidth: 440)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-    }
-}
-
-/// A gently animated radar symbol (static before macOS 14).
-private struct RadarSymbol: View {
-    var body: some View {
-        let image = Image(systemName: "dot.radiowaves.left.and.right")
-            .font(.system(size: 34, weight: .regular))
-            .foregroundStyle(Color.accentColor)
-            .frame(height: 44)
-            .accessibilityHidden(true)
-        if #available(macOS 14.0, *) {
-            image.symbolEffect(.variableColor.iterative, options: .repeating)
-        } else {
-            image
-        }
-    }
-}
-
-struct EmptyStateView: View {
-    let symbol: String
-    let title: String
-    let message: String
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 30)).foregroundStyle(.secondary).accessibilityHidden(true)
-            Text(title).font(.headline)
-            Text(message).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-    }
-}
-
-/// A titled group in the window.
-struct WindowSection<Content: View>: View {
-    let title: String
-    var trailing: AnyView? = nil
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(title).font(.headline)
-                Spacer()
-                if let trailing { trailing }
-            }
-            content()
-        }
-    }
-}
-
-/// Rows separated by dividers on one rounded background, like a grouped list.
-struct GroupedList<Item: Identifiable, Row: View>: View {
-    let items: [Item]
-    @ViewBuilder let row: (Item) -> Row
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                row(item).padding(.horizontal, 12).padding(.vertical, 8)
-                if index < items.count - 1 { Divider().padding(.leading, 12) }
-            }
-        }
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
     }
 }
 
@@ -679,51 +662,190 @@ struct Banner<Actions: View>: View {
     @ViewBuilder let actions: () -> Actions
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol).foregroundStyle(tint).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(tint.opacity(0.14)))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
                 actions()
+            }
+            .padding(.top, 6)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .card(cornerRadius: 12)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// A request waiting for an answer, shown on pages other than Receive so it is never missed.
+struct RequestStrip: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(model.pendingRequests) { request in
+                HStack(spacing: 12) {
+                    DeviceGlyph(type: request.device.type, size: 38)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(request.device.name) wants to share").font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                        Text("\(Format.countSummary(files: request.files.count, texts: request.texts.count, bytes: request.totalBytes)) · PIN \(request.pin)")
+                            .font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Button("Details") { model.section = .receive }
+                        .buttonStyle(PillButtonStyle(kind: .gray))
+                    Button("Decline") { model.decline(request) }
+                        .buttonStyle(PillButtonStyle(kind: .secondary))
+                    Button("Accept") { model.accept(request, trust: false) }
+                        .buttonStyle(PillButtonStyle(kind: .primary))
+                }
+                .padding(12)
+                .card(cornerRadius: 12, highlighted: true)
+                .accessibilityElement(children: .contain)
+            }
+        }
+    }
+}
+
+struct EmptyStateView: View {
+    let symbol: String
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 26, weight: .regular))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 60, height: 60)
+                .background(Circle().fill(Theme.neutralCircle))
+                .accessibilityHidden(true)
+            Text(title).font(.system(size: 15, weight: .semibold))
+            Text(message).font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+        .card()
+    }
+}
+
+// MARK: - Sheets
+
+/// Shown the first time the window opens.
+struct WelcomeSheet: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 88, height: 88)
+                .accessibilityHidden(true)
+            Text("Welcome to squick-share")
+                .font(.system(size: 24, weight: .bold))
+                .padding(.top, 8)
+            Text("Quick Share for your Mac. Share with Android in a tap.")
+                .font(.system(size: 13.5))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 14) {
+                WelcomeFeature(symbol: "paperplane.fill", tint: Theme.tile(Theme.brandTop, Theme.brandBottom), title: "Send",
+                               text: "Drop files on a nearby phone, tablet or PC.")
+                WelcomeFeature(symbol: "arrow.down.to.line", tint: Theme.tile(Color(red: 0.2, green: 0.83, blue: 0.6), Color(red: 0.02, green: 0.59, blue: 0.41)),
+                               title: "Receive", text: "Accept photos, videos and files from any Quick Share device.")
+                WelcomeFeature(symbol: "lock.fill", tint: Theme.tile(Color(red: 0.65, green: 0.55, blue: 0.98), Color(red: 0.43, green: 0.16, blue: 0.85)),
+                               title: "Private and local", text: "Everything stays on your Wi-Fi, encrypted between the two devices. No account.")
+            }
+            .padding(.top, 22)
+            Text("macOS may ask for Local Network, Notifications and Bluetooth access.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 18)
+            Button { settings.hasSeenWelcome = true } label: {
+                Text("Continue")
+            }
+            .buttonStyle(PillButtonStyle(kind: .primary, large: true, rounded: true, stretch: true))
+            .keyboardShortcut(.defaultAction)
+            .padding(.top, 12)
+        }
+        .padding(.horizontal, 36)
+        .padding(.top, 30)
+        .padding(.bottom, 28)
+        .frame(width: 480)
+    }
+}
+
+private struct WelcomeFeature: View {
+    let symbol: String
+    let tint: LinearGradient
+    let title: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(tint))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 13.5, weight: .semibold))
+                Text(text).font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .padding(10)
-        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .combine)
     }
 }
 
 /// Text or a link to send.
-private struct ComposeTextSheet: View {
+struct ComposeTextSheet: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Send Text or a Link").font(.headline)
+            Text("Send Text or a Link").font(.system(size: 15, weight: .semibold))
+            Text("It's added to the items to send. Then click a device.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
             TextEditor(text: $text)
                 .font(.body)
                 .frame(height: 120)
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.secondary.opacity(0.3)))
+                .padding(4)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.card))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.secondary.opacity(0.3)))
                 .accessibilityLabel("Text or link to send")
-            HStack {
+            HStack(spacing: 8) {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .buttonStyle(PillButtonStyle(kind: .secondary, rounded: true))
                 Button("Add") {
                     model.addSendText(text)
                     dismiss()
                 }
                 .keyboardShortcut(.return, modifiers: .command)
                 .help("Add (⌘↩)")
+                .buttonStyle(PillButtonStyle(kind: .primary, rounded: true))
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: 440)
     }
 }
+
+// MARK: - Drops
 
 /// Loads dropped files, links and text.
 enum DropLoader {

@@ -22,6 +22,11 @@ struct SquickShareApp: App {
                 Button("Send Files…") { appDelegate.model.chooseFiles() }
                     .keyboardShortcut("o")
             }
+            // Edit › Find puts the cursor in the toolbar's search field (History and Settings).
+            CommandGroup(replacing: .textEditing) {
+                Button("Find…") { appDelegate.model.focusSearch() }
+                    .keyboardShortcut("f")
+            }
             // View menu: jump to a page of the main window, like the sidebar.
             CommandGroup(before: .sidebar) {
                 Button("Send") { appDelegate.model.showMainWindow(section: .send) }

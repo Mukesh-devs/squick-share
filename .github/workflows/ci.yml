@@ -196,3 +196,49 @@ jobs:
             build/snapshots
             build/checks
           if-no-files-found: ignore
+
+  # The same snapshots on macOS 26, where toolbars and controls look different (Liquid Glass).
+  # Informational only: it never fails the workflow.
+  snapshots-macos-26:
+    runs-on: macos-26
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XCODE" ] || { ls -d /Applications/Xcode*.app; exit 1; }
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+          sw_vers
+
+      - name: Build Debug app
+        run: |
+          set -o pipefail
+          xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Debug \
+            -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData $SIGN build 2>&1 \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" | sort -u | head -n 60
+          test -d build/DerivedData/Build/Products/Debug/squick-share.app
+
+      - name: Render snapshots
+        run: |
+          CONTAINER="$HOME/Library/Containers/$BUNDLE_ID/Data"
+          rm -rf "$CONTAINER/tmp/snapshots"
+          BIN=build/DerivedData/Build/Products/Debug/squick-share.app/Contents/MacOS/squick-share
+          SQUICKSHARE_SNAPSHOT=1 "$BIN" > snapshot.log 2>&1 & pid=$!
+          for _ in $(seq 90); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          kill -9 "$pid" 2>/dev/null || true
+          tail -n 20 snapshot.log
+          mkdir -p build/snapshots-macos-26
+          cp "$CONTAINER"/tmp/snapshots/*.png build/snapshots-macos-26/
+          ls build/snapshots-macos-26
+
+      - name: Upload snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshots-macos-26
+          path: build/snapshots-macos-26
+          if-no-files-found: error

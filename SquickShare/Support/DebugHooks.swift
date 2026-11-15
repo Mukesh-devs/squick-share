@@ -67,9 +67,22 @@ extension AppModel {
         let steps: [(String, () -> Void)] = [
             ("open main window", { self.showMainWindow(section: .send) }),
             ("load sample state", { self.debugLoadSampleState(request: request) }),
+            ("welcome sheet", { self.settings.hasSeenWelcome = false }),
+            ("dismiss welcome sheet", { self.settings.hasSeenWelcome = true }),
+            ("send text sheet", { self.isComposingText = true }),
+            ("close send text sheet", { self.isComposingText = false }),
             ("page: receive", { self.section = .receive }),
             ("page: history", { self.section = .history }),
+            ("history: received only", { self.historyFilter = .received }),
+            ("history: sent only", { self.historyFilter = .sent }),
+            ("history: search", { self.historyFilter = .all; self.historyQuery = "IMG" }),
+            ("history: focus search", { self.focusSearch() }),
+            ("history: no matches", { self.historyQuery = "zzzz" }),
+            ("history: clear search", { self.historyQuery = "" }),
             ("page: settings", { self.section = .settings }),
+            ("settings: search", { self.settingsQuery = "blue" }),
+            ("settings: focus search", { self.focusSearch() }),
+            ("settings: clear search", { self.settingsQuery = "" }),
             ("page: send", { self.section = .send }),
             ("build menu", { self.debugBuildMenu() }),
             ("visibility: everyone for 10 minutes", { self.settings.visibility = .temporary }),
@@ -151,53 +164,78 @@ extension AppModel {
     private func renderSnapshots() {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("snapshots", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        Theme.solidSidebar = true
         let request = Self.sampleRequest()
-        let windowSize = NSSize(width: 860, height: 620)
+        let windowSize = NSSize(width: 1100, height: 720)
+        let tallWindow = NSSize(width: 1100, height: 900)
         debugPrepareSnapshot()
         debugLoadSampleState(request: request)
 
-        let tallWindow = NSSize(width: 860, height: 1100)
+        // The real window, toolbar included, in each state.
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             let suffix = appearance == .aqua ? "light" : "dark"
-            section = .send
-            render(mainWindow, size: tallWindow, "window-send-busy-\(suffix)", directory, appearance)
-            section = .receive
-            render(mainWindow, size: tallWindow, "window-receive-busy-\(suffix)", directory, appearance)
+            renderWindow(.send, size: tallWindow, "window-send-busy-\(suffix)", directory, appearance)
+            renderWindow(.receive, size: tallWindow, "window-receive-busy-\(suffix)", directory, appearance)
+            renderWindow(.history, size: windowSize, "window-history-\(suffix)", directory, appearance)
+            settingsTab = .general
+            renderWindow(.settings, size: windowSize, "window-settings-\(suffix)", directory, appearance)
             render(MenuPreview().environmentObject(self).environmentObject(settings), width: StatusItemController.menuWidth,
                    "menu-\(suffix)", directory, appearance)
-            render(IncomingRequestView(request: request).environmentObject(self).frame(width: 380), width: 380, "request-\(suffix)", directory, appearance)
+            render(WelcomeSheet().environmentObject(settings).background(Theme.card), width: 480,
+                   "welcome-\(suffix)", directory, appearance)
         }
-        render(SettingsView().environmentObject(self).environmentObject(settings).frame(width: 520, height: 540),
-               width: 520, "settings-window", directory, .aqua)
-        render(GeneralSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 500), width: 500, "settings-general", directory, .aqua)
-        render(DiagnosticsSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 420), width: 500, "settings-diagnostics", directory, .aqua)
-        render(TrustedDevicesSettings().environmentObject(settings).frame(width: 500, height: 300), width: 500, "settings-trusted", directory, .aqua)
+        settingsTab = .trustedDevices
+        renderWindow(.settings, size: windowSize, "settings-trusted", directory, .aqua)
+        settingsTab = .diagnostics
+        renderWindow(.settings, size: windowSize, "settings-diagnostics", directory, .aqua)
+        settingsTab = .general
+        settingsQuery = "visible"
+        renderWindow(.settings, size: windowSize, "settings-search", directory, .aqua)
+        settingsQuery = ""
         render(MenuBarIconGallery(), width: 560, "menubar-icons", directory, .aqua)
 
-        section = .send
         showQRCode()
-        render(mainWindow, size: windowSize, "window-qr", directory, .aqua)
+        renderWindow(.send, size: windowSize, "window-qr", directory, .aqua)
         hideQRCode()
 
         debugLoadBrowsingState()
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             let suffix = appearance == .aqua ? "light" : "dark"
-            for page in MainSection.allCases {
-                section = page
-                settingsTab = .general
-                render(mainWindow, size: windowSize, "window-\(page.rawValue)-\(suffix)", directory, appearance)
-            }
+            renderWindow(.send, size: windowSize, "window-send-\(suffix)", directory, appearance)
+            renderWindow(.receive, size: windowSize, "window-receive-\(suffix)", directory, appearance)
             render(MenuPreview().environmentObject(self).environmentObject(settings), width: StatusItemController.menuWidth,
                    "menu-idle-\(suffix)", directory, appearance)
         }
-        section = .send
         debugLoadSearchingState()
-        render(mainWindow, size: windowSize, "window-searching", directory, .aqua)
+        renderWindow(.send, size: windowSize, "window-searching", directory, .aqua)
+        windows.close(id: WindowCoordinator.mainID)
         diagnostics.info("debug", "snapshots written")
     }
 
-    private var mainWindow: some View {
-        MainWindowView().environmentObject(self).environmentObject(settings)
+    /// Shows `section` in the real main window at `size`, lets SwiftUI and AppKit lay it out, and
+    /// renders the whole window frame (title bar and toolbar included) to a PNG.
+    private func renderWindow(_ page: MainSection, size: NSSize, _ name: String, _ directory: URL,
+                              _ appearance: NSAppearance.Name) {
+        section = page
+        showMainWindow()
+        guard let window = windows.mainWindow else { return }
+        window.appearance = NSAppearance(named: appearance)
+        window.setContentSize(size)
+        // Section changes reach the toolbar through the main queue, which doesn't run here.
+        windows.updateToolbarItems()
+        settle()
+        guard let frameView = window.contentView?.superview else { return }
+        frameView.layoutSubtreeIfNeeded()
+        frameView.displayIfNeeded()
+        write(frameView, name, directory)
+    }
+
+    /// Runs the run loop briefly so SwiftUI applies pending state changes.
+    private func settle(_ seconds: TimeInterval = 0.5) {
+        let until = Date().addingTimeInterval(seconds)
+        while Date() < until {
+            RunLoop.current.run(mode: .default, before: until)
+        }
     }
 
     private func render<V: View>(_ view: V, width: CGFloat, _ name: String, _ directory: URL, _ appearance: NSAppearance.Name) {
@@ -219,15 +257,19 @@ extension AppModel {
         window.appearance = NSAppearance(named: appearance)
         window.contentView = hosting
         hosting.layoutSubtreeIfNeeded()
-        // Always 2x (Retina), whatever screen this runs on: CI machines have 1x displays.
+        write(hosting, name, directory)
+    }
+
+    /// Writes `view` to `name`.png, always at 2x (Retina), whatever screen this runs on: CI machines have 1x displays.
+    private func write(_ view: NSView, _ name: String, _ directory: URL) {
         let scale: CGFloat = 2
-        let bounds = hosting.bounds
+        let bounds = view.bounds
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(bounds.width * scale),
                                          pixelsHigh: Int(bounds.height * scale), bitsPerSample: 8, samplesPerPixel: 4,
                                          hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                                          bytesPerRow: 0, bitsPerPixel: 0) else { return }
         rep.size = bounds.size
-        hosting.cacheDisplay(in: bounds, to: rep)
+        view.cacheDisplay(in: bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("\(name).png"))
     }
 }

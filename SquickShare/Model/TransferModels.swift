@@ -1,5 +1,40 @@
 import Foundation
 import QuickShareCore
+import UniformTypeIdentifiers
+
+/// What a file or text item is, for drawing its document icon (JPG, MP4, PDF, link…). Display only.
+struct DocKind: Codable, Hashable {
+    enum Category: String, Codable { case image, video, audio, pdf, document, archive, link, text, other }
+    var category: Category
+    /// Short type label shown on the icon, e.g. "JPG".
+    var label: String
+
+    static let link = DocKind(category: .link, label: "URL")
+    static let text = DocKind(category: .text, label: "TEXT")
+
+    init(category: Category, label: String) {
+        self.category = category
+        self.label = label
+    }
+
+    init(fileName: String) {
+        let ext = (fileName as NSString).pathExtension.lowercased()
+        let type = UTType(filenameExtension: ext)
+        label = ext.isEmpty ? "FILE" : String(ext.uppercased().prefix(4))
+        if let type, type.conforms(to: .pdf) { category = .pdf }
+        else if let type, type.conforms(to: .image) { category = .image }
+        else if let type, type.conforms(to: .movie) || type.conforms(to: .video) { category = .video }
+        else if let type, type.conforms(to: .audio) { category = .audio }
+        else if let type, type.conforms(to: .archive) { category = .archive }
+        else if let type, type.conforms(to: .text) || type.conforms(to: .presentation) || type.conforms(to: .spreadsheet)
+                    || type.conforms(to: .compositeContent) { category = .document }
+        else { category = .other }
+    }
+
+    init(text: String) {
+        self = Format.webURL(text) != nil ? .link : .text
+    }
+}
 
 enum TransferDirection: String, Codable {
     case incoming, outgoing
@@ -44,6 +79,8 @@ struct ActiveTransfer: Identifiable {
     var cancelling = false
     /// Outgoing only: the `DiscoveredDevice.id` it goes to, so the device list can show its progress.
     var targetID: String? = nil
+    /// The items' kinds, for document icons (display only).
+    var kinds: [DocKind] = []
 
     var fraction: Double { totalBytes > 0 ? min(1, Double(bytes) / Double(totalBytes)) : 0 }
 
@@ -99,6 +136,10 @@ struct RecentTransfer: Identifiable, Codable {
     let text: String?
     let succeeded: Bool
     let message: String?
+    /// Display only; missing in entries saved by earlier versions.
+    var kinds: [DocKind]? = nil
+    var totalBytes: Int64? = nil
+    var deviceType: DeviceType? = nil
 
     var title: String {
         if let first = itemNames.first {

@@ -12,46 +12,57 @@ func gradient(_ colors: [CGColor]) -> CGGradient {
     CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors as CFArray, locations: nil)!
 }
 
-/// The mark: two curved arrows passing over and under each other, an oval "exchange" between two devices.
-/// The top arrow travels left to right (send), the bottom one right to left (receive).
+/// The mark: an "S" of two arcs with ball ends, whose middle bar is split into two arrows meeting
+/// in the centre (→ ←): two devices sharing with each other.
 func addMark(to ctx: CGContext, size: CGFloat) {
-    let cx = size / 2, cy = size / 2
-    let halfWidth = size * 0.265     // half the width of the oval
-    let bulge = size * 0.15          // how far each arc rises above / falls below the middle
-    let gap = size * 0.06            // space between the two arrows
-    let stroke = size * 0.078
-    let radius = (halfWidth * halfWidth + bulge * bulge) / (2 * bulge)
-    let half = asin(halfWidth / radius)
+    let center = CGPoint(x: size / 2, y: size / 2)
+    let radius = size * 0.255        // the S is drawn on one circle
+    let stroke = size * 0.066        // line thickness
+    let gap = size * 0.05            // half the space between the two arrow tips
+    let armWidth = stroke * 0.55     // arrowhead arms, thinner than the line so the tips stay sharp
+    let armLength = size * 0.078
+    let spread = 40 * CGFloat.pi / 180
+    let topEnd = 48 * CGFloat.pi / 180, bottomEnd = -132 * CGFloat.pi / 180
+    func point(_ angle: CGFloat) -> CGPoint {
+        CGPoint(x: center.x + radius * cos(angle), y: center.y + radius * sin(angle))
+    }
 
-    // (circle centre, start angle, end angle); both arcs run clockwise (decreasing angle).
-    let upper = (CGPoint(x: cx, y: cy + bulge + gap / 2 - radius), CGFloat.pi / 2 + half * 0.98, CGFloat.pi / 2 - half * 0.72)
-    let lower = (CGPoint(x: cx, y: cy - bulge - gap / 2 + radius), -CGFloat.pi / 2 + half * 0.98, -CGFloat.pi / 2 - half * 0.72)
+    ctx.setLineCap(.round)
+    ctx.setLineJoin(.round)
 
-    for (center, start, end) in [upper, lower] {
-        // Shaft.
-        let shaft = CGMutablePath()
-        shaft.addArc(center: center, radius: radius, startAngle: start, endAngle: end, clockwise: true)
-        ctx.addPath(shaft)
+    // Upper bowl: from the upper-right end over the top and down the left side; then the bar → .
+    let upper = CGMutablePath()
+    upper.addArc(center: center, radius: radius, startAngle: topEnd, endAngle: .pi, clockwise: false)
+    upper.addLine(to: CGPoint(x: center.x - gap - armWidth * 0.6, y: center.y))
+    // Lower bowl: the bar ← from the right side, then down and around the bottom to the lower-left end.
+    let lower = CGMutablePath()
+    lower.move(to: CGPoint(x: center.x + gap + armWidth * 0.6, y: center.y))
+    lower.addLine(to: point(0))
+    lower.addArc(center: center, radius: radius, startAngle: 0, endAngle: bottomEnd, clockwise: true)
+    for path in [upper, lower] {
+        ctx.addPath(path)
         ctx.setLineWidth(stroke)
-        ctx.setLineCap(.round)
         ctx.strokePath()
+    }
 
-        // Arrowhead along the direction of travel at the end of the arc.
-        let tip0 = CGPoint(x: center.x + radius * cos(end), y: center.y + radius * sin(end))
-        let dir = CGVector(dx: sin(end), dy: -cos(end))            // clockwise tangent
-        let normal = CGVector(dx: -dir.dy, dy: dir.dx)
-        let length = size * 0.135, headHalf = size * 0.085
-        let base = CGPoint(x: tip0.x - dir.dx * length * 0.25, y: tip0.y - dir.dy * length * 0.25)
-        let head = CGMutablePath()
-        head.move(to: CGPoint(x: base.x + dir.dx * length, y: base.y + dir.dy * length))
-        head.addLine(to: CGPoint(x: base.x + normal.dx * headHalf, y: base.y + normal.dy * headHalf))
-        head.addLine(to: CGPoint(x: base.x - normal.dx * headHalf, y: base.y - normal.dy * headHalf))
-        head.closeSubpath()
-        // Filled and stroked with round joins: a triangle with softly rounded corners.
-        ctx.addPath(head)
-        ctx.setLineWidth(size * 0.022)
-        ctx.setLineJoin(.round)
-        ctx.drawPath(using: .fillStroke)
+    // Arrowheads: open chevrons meeting in the middle.
+    let arrows = CGMutablePath()
+    for (tip, direction) in [(CGPoint(x: center.x - gap, y: center.y), CGFloat(1)),
+                             (CGPoint(x: center.x + gap, y: center.y), CGFloat(-1))] {
+        for side in [CGFloat(1), -1] {
+            arrows.move(to: tip)
+            arrows.addLine(to: CGPoint(x: tip.x - direction * armLength * cos(spread), y: tip.y + side * armLength * sin(spread)))
+        }
+    }
+    ctx.addPath(arrows)
+    ctx.setLineWidth(armWidth)
+    ctx.strokePath()
+
+    // Ball ends on the two open ends of the S.
+    let ball = stroke * 0.82
+    for angle in [topEnd, bottomEnd] {
+        let p = point(angle)
+        ctx.fillEllipse(in: CGRect(x: p.x - ball, y: p.y - ball, width: ball * 2, height: ball * 2))
     }
 }
 

@@ -145,6 +145,21 @@ jobs:
           fi
           exit $failed
 
+      - name: Render app icon from scripts/make-icon.swift
+        if: success()
+        run: |
+          mkdir -p build/app-icon
+          swift scripts/make-icon.swift build/app-icon
+          ls build/app-icon
+
+      - name: Upload app icon
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-icon
+          path: build/app-icon
+          if-no-files-found: error
+
       - name: Documentation screenshots (neutral sample data)
         if: success()
         run: ./scripts/make-screenshots.sh --out build/docs-screenshots

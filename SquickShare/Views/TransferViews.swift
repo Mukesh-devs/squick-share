@@ -26,7 +26,7 @@ struct DocIcon: View {
                 Image(systemName: kind.symbol)
                     .font(.system(size: size * 0.36, weight: .medium))
                 Text(kind.label)
-                    .font(.system(size: max(6, size * 0.22), weight: .bold, design: .rounded))
+                    .font(.system(size: max(6, size * 0.22), weight: .bold, ))
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
@@ -382,14 +382,17 @@ private struct VisibilityHero: View {
 
     var body: some View {
         HeroCard {
+            // The layout depends on the window's width only, never on the text, so the card keeps
+            // the same height whichever visibility is chosen.
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 22) {
                     identity
-                    Spacer(minLength: 12)
+                        .frame(minWidth: 260, idealWidth: 260, maxWidth: .infinity, alignment: .leading)
                     controls
                 }
                 VStack(alignment: .leading, spacing: 16) {
                     identity
+                        .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
                     controls
                 }
             }
@@ -406,7 +409,8 @@ private struct VisibilityHero: View {
                 Text(detail)
                     .font(.system(size: 13.5))
                     .opacity(0.88)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
     }
@@ -439,7 +443,7 @@ private struct VisibilityHero: View {
         case .temporary:
             let remaining = (settings.temporaryVisibilityUntil ?? model.now).timeIntervalSince(model.now)
             return "Visible to everyone for \(Format.countdown(remaining))"
-        case .hidden: return "Hidden. Choose Everyone to receive files."
+        case .hidden: return "Hidden from nearby devices"
         }
     }
 }
@@ -576,7 +580,7 @@ struct PinDigits: View {
         HStack(spacing: 6) {
             ForEach(Array(pin.enumerated()), id: \.offset) { _, digit in
                 Text(String(digit))
-                    .font(.system(size: 26, weight: .bold, design: .rounded).monospacedDigit())
+                    .font(.system(size: 26, weight: .bold).monospacedDigit())
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 38, height: 48)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.accentSoft))

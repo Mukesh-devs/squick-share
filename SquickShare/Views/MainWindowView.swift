@@ -302,12 +302,9 @@ private struct ContentPane: View {
                 Theme.page.ignoresSafeArea()
                 page
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                // The toolbar area: a light bar with a hairline, like Mail and the App Store.
-                VStack(spacing: 0) {
-                    Theme.toolbar
-                    Rectangle().fill(Theme.separator).frame(height: 1)
-                }
-                .frame(height: geometry.safeAreaInsets.top + 1)
+                // The toolbar area: a light bar, without a line under it.
+                Theme.toolbar
+                .frame(height: geometry.safeAreaInsets.top)
                 .offset(y: -geometry.safeAreaInsets.top)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
@@ -593,17 +590,6 @@ struct ToolbarPill: View {
         .buttonStyle(PillButtonStyle(kind: prominent ? .primary : .secondary))
         .padding(.horizontal, 2)
         .padding(.vertical, 4)
-    }
-}
-
-/// Opens the folder received files are saved to (named after it).
-struct DownloadsToolbarPill: View {
-    @EnvironmentObject private var model: AppModel
-    @EnvironmentObject private var settings: AppSettings
-
-    var body: some View {
-        ToolbarPill(title: settings.downloadFolder.lastPathComponent, symbol: "folder") { model.openDownloadFolder() }
-            .help("Show the folder received files are saved to")
     }
 }
 

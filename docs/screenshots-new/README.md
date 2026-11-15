@@ -18,8 +18,8 @@ macOS darkens it automatically (charcoal tile, blue S).
 The main window has a sidebar with four pages: **Send** (⌘1), **Receive** (⌘2), **History** (⌘3) and
 **Settings** (⌘,). The sidebar shows a badge when a request is waiting or a transfer is running, and the
 "This Mac" card at the bottom shows whether this Mac can be found. The toolbar's buttons change with the
-page: Send Text and Choose Files on Send, the Downloads folder on Receive, a filter and search on
-History, and a search field on Settings.
+page: Send Text and Choose Files on Send, a filter and search on History, and a search field on
+Settings. All text is the system font, SF Pro.
 
 ## Welcome
 

@@ -6,8 +6,8 @@ enum SettingsTab: Hashable, CaseIterable {
     case general, trustedDevices, diagnostics
 }
 
-/// Settings, laid out like System Settings: grouped rows with coloured icons, in two columns when
-/// the window is wide enough. Trusted Devices and Diagnostics open as subpages.
+/// Settings, laid out like System Settings: grouped rows in one column. Trusted Devices and
+/// Diagnostics open as subpages.
 struct SettingsPage: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var settings: AppSettings
@@ -40,10 +40,10 @@ private struct SettingsOverview: View {
 
     var body: some View {
         let query = model.settingsQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        GeometryReader { geometry in
-            PageScroll(spacing: 0) {
-                PageTitle(title: "Settings", subtitle: "How this Mac appears to others, where files go, and more.")
-                    .padding(.bottom, 8)
+        PageScroll(spacing: 0) {
+            PageTitle(title: "Settings", subtitle: "How this Mac appears to others, where files go, and more.")
+                .padding(.bottom, 8)
+            Group {
                 if !query.isEmpty {
                     let matches = SettingsItem.allCases.filter { $0.matches(query) }
                     if matches.isEmpty {
@@ -53,22 +53,14 @@ private struct SettingsOverview: View {
                     } else {
                         SettingsGroup(title: "Results", items: matches)
                     }
-                } else if geometry.size.width >= 780 {
-                    HStack(alignment: .top, spacing: 22) {
-                        VStack(spacing: 0) {
-                            SettingsGroup(title: "This Mac", items: SettingsItem.thisMac)
-                            SettingsGroup(title: "App", items: SettingsItem.app)
-                        }
-                        VStack(spacing: 0) {
-                            SettingsGroup(title: "Connection", items: SettingsItem.connection)
-                        }
-                    }
                 } else {
                     SettingsGroup(title: "This Mac", items: SettingsItem.thisMac)
                     SettingsGroup(title: "App", items: SettingsItem.app)
                     SettingsGroup(title: "Connection", items: SettingsItem.connection)
                 }
             }
+            // One readable column, like System Settings.
+            .frame(maxWidth: 680, alignment: .leading)
         }
     }
 }
@@ -134,7 +126,7 @@ private struct SettingsGroup: View {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     SettingsItemRow(item: item)
                     if index < items.count - 1 {
-                        Rectangle().fill(Theme.cardBorder).frame(height: 1).padding(.leading, 58)
+                        Rectangle().fill(Theme.cardBorder).frame(height: 1).padding(.leading, 16)
                     }
                 }
             }
@@ -156,7 +148,7 @@ private struct SettingsItemRow: View {
         case .name:
             NameRow()
         case .visibility:
-            SettingsRow(symbol: "eye.fill", tint: SettingsIcon.sky, title: item.title, subtitle: visibilitySubtitle) {
+            SettingsRow(title: item.title, subtitle: visibilitySubtitle) {
                 Picker(item.title, selection: $settings.visibility) {
                     ForEach(Visibility.allCases) { Text($0.label).tag($0) }
                 }
@@ -165,7 +157,7 @@ private struct SettingsItemRow: View {
                 .fixedSize()
             }
         case .saveTo:
-            SettingsRow(symbol: "folder.fill", tint: SettingsIcon.cyan, title: item.title) {
+            SettingsRow(title: item.title) {
                 Menu {
                     Button("Choose…") { FolderChooser.choose(settings) }
                     if !settings.isDefaultDownloadFolder {
@@ -183,18 +175,18 @@ private struct SettingsItemRow: View {
         case .launchAtLogin:
             LaunchAtLoginRow()
         case .menuBar:
-            SettingsRow(symbol: "menubar.rectangle", tint: SettingsIcon.indigo, title: item.title,
+            SettingsRow(title: item.title,
                         subtitle: settings.showInMenuBar ? nil : "The Dock icon stays while this is off") {
                 SettingsSwitch(title: item.title, isOn: $settings.showInMenuBar)
             }
         case .dock:
-            SettingsRow(symbol: "dock.rectangle", tint: SettingsIcon.purple, title: item.title,
+            SettingsRow(title: item.title,
                         subtitle: "Otherwise only while this window is open") {
                 SettingsSwitch(title: item.title, isOn: $settings.showInDock)
                     .disabled(!settings.showInMenuBar)
             }
         case .notifications:
-            SettingsRow(symbol: "bell.fill", tint: SettingsIcon.red, title: item.title, subtitle: notificationSubtitle,
+            SettingsRow(title: item.title, subtitle: notificationSubtitle,
                         subtitleIsWarning: notificationsBlocked) {
                 HStack(spacing: 10) {
                     if notificationsBlocked {
@@ -210,7 +202,7 @@ private struct SettingsItemRow: View {
                 }
             }
         case .bluetooth:
-            SettingsRow(symbol: "dot.radiowaves.left.and.right", tint: SettingsIcon.blue, title: item.title,
+            SettingsRow(title: item.title,
                         subtitle: settings.useBluetooth ? Self.bluetoothMessage(model.beaconStatus) : "Only listens; nothing is sent over Bluetooth") {
                 HStack(spacing: 10) {
                     if settings.useBluetooth, model.beaconStatus == .notAllowed {
@@ -226,7 +218,7 @@ private struct SettingsItemRow: View {
             }
             .help("When a nearby phone opens Quick Share, this Mac announces itself right away. Nothing is sent over Bluetooth.")
         case .network:
-            SettingsRow(symbol: "wifi", tint: SettingsIcon.green, title: item.title) {
+            SettingsRow(title: item.title) {
                 Picker(item.title, selection: $settings.interface) {
                     Text("Any network").tag(InterfaceRestriction.any)
                     Text("Wi-Fi only").tag(InterfaceRestriction.wifi)
@@ -238,12 +230,12 @@ private struct SettingsItemRow: View {
             }
             .help("Limit discovery and transfers to one kind of network interface")
         case .trustedDevices:
-            SettingsLinkRow(symbol: "checkmark.shield.fill", tint: SettingsIcon.orange, title: item.title,
+            SettingsLinkRow(title: item.title,
                             value: settings.trustedDevices.isEmpty ? "None" : "\(settings.trustedDevices.count)") {
                 model.settingsTab = .trustedDevices
             }
         case .diagnostics:
-            SettingsLinkRow(symbol: "stethoscope", tint: SettingsIcon.gray, title: item.title,
+            SettingsLinkRow(title: item.title,
                             value: settings.verboseLogging ? "Verbose" : nil) {
                 model.settingsTab = .diagnostics
             }
@@ -280,7 +272,7 @@ private struct NameRow: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        SettingsRow(symbol: "laptopcomputer", tint: SettingsIcon.blue, title: "Name",
+        SettingsRow(title: "Name",
                     subtitle: error ?? (focused ? "Press Return to save" : nil), subtitleIsWarning: error != nil) {
             TextField("Name", text: $draft)
                 .textFieldStyle(.plain)
@@ -317,7 +309,7 @@ private struct LaunchAtLoginRow: View {
     @State private var error: String?
 
     var body: some View {
-        SettingsRow(symbol: "power", tint: SettingsIcon.gray, title: "Open at login", subtitle: error, subtitleIsWarning: true) {
+        SettingsRow(title: "Open at login", subtitle: error, subtitleIsWarning: true) {
             SettingsSwitch(title: "Open at login", isOn: Binding(
                 get: { settings.launchAtLogin },
                 set: { error = settings.setLaunchAtLogin($0) }))
@@ -325,10 +317,8 @@ private struct LaunchAtLoginRow: View {
     }
 }
 
-/// A row: coloured icon, title, optional subtitle, and a control on the right.
+/// A row: title, optional subtitle, and a control on the right.
 struct SettingsRow<Accessory: View>: View {
-    let symbol: String
-    let tint: LinearGradient
     let title: String
     var subtitle: String? = nil
     var subtitleIsWarning = false
@@ -336,9 +326,8 @@ struct SettingsRow<Accessory: View>: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            SettingsIcon(symbol: symbol, tint: tint)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13.5, weight: .medium))
+                Text(title).font(.system(size: 13.5))
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: 11.5))
@@ -349,16 +338,14 @@ struct SettingsRow<Accessory: View>: View {
             Spacer(minLength: 10)
             accessory()
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .frame(minHeight: 50)
+        .frame(minHeight: 44)
     }
 }
 
 /// A row that opens a subpage.
 private struct SettingsLinkRow: View {
-    let symbol: String
-    let tint: LinearGradient
     let title: String
     var value: String? = nil
     let action: () -> Void
@@ -366,7 +353,7 @@ private struct SettingsLinkRow: View {
 
     var body: some View {
         Button(action: action) {
-            SettingsRow(symbol: symbol, tint: tint, title: title) {
+            SettingsRow(title: title) {
                 HStack(spacing: 6) {
                     if let value { Text(value).font(.system(size: 13)).foregroundStyle(.secondary) }
                     Image(systemName: "chevron.right")
@@ -395,7 +382,7 @@ private struct SettingsSwitch: View {
     }
 }
 
-/// The coloured rounded square behind a setting's symbol.
+/// A symbol on a coloured rounded square (the Receive page's "saved to" card).
 struct SettingsIcon: View {
     let symbol: String
     let tint: LinearGradient

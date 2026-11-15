@@ -132,7 +132,6 @@ final class WindowCoordinator: NSObject, NSWindowDelegate, NSToolbarDelegate, NS
 
     private static let sendTextID = NSToolbarItem.Identifier("squick-share.sendText")
     private static let chooseFilesID = NSToolbarItem.Identifier("squick-share.chooseFiles")
-    private static let downloadsID = NSToolbarItem.Identifier("squick-share.downloads")
     private static let historyFilterID = NSToolbarItem.Identifier("squick-share.historyFilter")
     private static let historySearchID = NSToolbarItem.Identifier("squick-share.historySearch")
     private static let settingsSearchID = NSToolbarItem.Identifier("squick-share.settingsSearch")
@@ -140,7 +139,7 @@ final class WindowCoordinator: NSObject, NSWindowDelegate, NSToolbarDelegate, NS
     private static func identifiers(for section: MainSection) -> [NSToolbarItem.Identifier] {
         switch section {
         case .send: return [.flexibleSpace, sendTextID, chooseFilesID]
-        case .receive: return [.flexibleSpace, downloadsID]
+        case .receive: return []
         case .history: return [.flexibleSpace, historyFilterID, historySearchID]
         case .settings: return [.flexibleSpace, settingsSearchID]
         }
@@ -162,7 +161,7 @@ final class WindowCoordinator: NSObject, NSWindowDelegate, NSToolbarDelegate, NS
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, Self.sendTextID, Self.chooseFilesID, Self.downloadsID, Self.historyFilterID,
+        [.flexibleSpace, Self.sendTextID, Self.chooseFilesID, Self.historyFilterID,
          Self.historySearchID, Self.settingsSearchID]
     }
 
@@ -177,10 +176,6 @@ final class WindowCoordinator: NSObject, NSWindowDelegate, NSToolbarDelegate, NS
         case Self.chooseFilesID:
             return hostedItem(identifier, label: "Choose Files") {
                 ToolbarPill(title: "Choose Files", symbol: "plus", prominent: true) { model.chooseFiles() }
-            }
-        case Self.downloadsID:
-            return hostedItem(identifier, label: "Downloads") {
-                DownloadsToolbarPill().environmentObject(model).environmentObject(model.settings)
             }
         case Self.historyFilterID:
             return hostedItem(identifier, label: "Show") { HistoryFilterPicker().environmentObject(model) }

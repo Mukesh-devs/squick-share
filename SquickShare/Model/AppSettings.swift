@@ -41,6 +41,8 @@ final class AppSettings: ObservableObject {
     @Published var protocolOptions: ProtocolOptions { didSet { save(protocolOptions, "protocolOptions") } }
     /// Show the icon in the menu bar. When off, the app keeps a Dock icon so it stays reachable.
     @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: "showInMenuBar") } }
+    /// Keep the Dock icon even when no window is open.
+    @Published var showInDock: Bool { didSet { defaults.set(showInDock, forKey: "showInDock") } }
     /// Listen for phones that start Quick Share over Bluetooth, and announce this Mac to them at once.
     @Published var useBluetooth: Bool { didSet { defaults.set(useBluetooth, forKey: "useBluetooth") } }
     @Published private(set) var downloadFolder: URL
@@ -63,6 +65,7 @@ final class AppSettings: ObservableObject {
         protocolOptions = Self.load(ProtocolOptions.self, "protocolOptions") ?? ProtocolOptions()
         showInMenuBar = defaults.object(forKey: "showInMenuBar") as? Bool ?? true
         useBluetooth = defaults.object(forKey: "useBluetooth") as? Bool ?? true
+        showInDock = defaults.bool(forKey: "showInDock")
         downloadFolder = Self.realDownloadsFolder
         restoreDownloadFolder()
         refreshLaunchAtLogin()

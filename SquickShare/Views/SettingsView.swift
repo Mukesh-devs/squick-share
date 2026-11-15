@@ -95,6 +95,9 @@ struct GeneralSettings: View {
             if let loginError { Text(loginError).font(.caption).foregroundStyle(.orange) }
 
             Toggle("Show in menu bar", isOn: $settings.showInMenuBar)
+            Toggle("Always show in Dock", isOn: $settings.showInDock)
+                .disabled(!settings.showInMenuBar)
+                .help("Otherwise the Dock icon only shows while the squick-share window is open")
             if !settings.showInMenuBar {
                 Text("squick-share keeps its Dock icon while the menu bar icon is off.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -102,6 +105,20 @@ struct GeneralSettings: View {
 
             Toggle("Show notifications", isOn: $settings.notificationsEnabled)
                 .help("Incoming requests appear as notifications with Accept and Decline")
+            if settings.notificationsEnabled, !model.notificationsAllowed {
+                HStack(spacing: 6) {
+                    Text("Notifications are off for squick-share in System Settings, so requests only show in this window and the menu bar.")
+                        .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Open Notification Settings") {
+                        let id = Bundle.main.bundleIdentifier ?? ""
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .buttonStyle(.link).font(.caption)
+                }
+            }
 
             Toggle("Use Bluetooth to detect phones", isOn: $settings.useBluetooth)
                 .help("When a nearby phone opens Quick Share, this Mac announces itself right away. Nothing is sent over Bluetooth.")

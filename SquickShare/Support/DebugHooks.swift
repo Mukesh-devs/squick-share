@@ -94,9 +94,13 @@ extension AppModel {
             ("show menu bar icon", { self.settings.showInMenuBar = true }),
             ("bluetooth off", { self.settings.useBluetooth = false }),
             ("bluetooth on", { self.settings.useBluetooth = true }),
-            ("request panel", { self.windows.showIncomingRequest(request, model: self) }),
-            ("close request panel", { self.windows.close(id: "request-\(request.id)") }),
-            ("received text panel", { self.windows.showReceivedText(text: "https://example.com", kind: .url, from: "Test") }),
+            ("received link (banner and notification)", { self.debugReceiveText("https://example.com/page") }),
+            ("page: history with banner", { self.section = .history }),
+            ("dismiss received text", { self.dismissReceivedText() }),
+            ("received text", { self.debugReceiveText("A note from the phone") }),
+            ("copy received text", { if let item = self.receivedText { self.copyReceivedText(item) } }),
+            ("always show in Dock on", { self.settings.showInDock = true }),
+            ("always show in Dock off", { self.settings.showInDock = false }),
             ("result notification with thumbnail", {
                 self.notifications.postResult(title: "Transfer complete", body: "1 file received from Test", reveal: sampleFile)
             }),
@@ -168,7 +172,6 @@ extension AppModel {
         render(GeneralSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 500), width: 500, "settings-general", directory, .aqua)
         render(DiagnosticsSettings().environmentObject(self).environmentObject(settings).frame(width: 500, height: 420), width: 500, "settings-diagnostics", directory, .aqua)
         render(TrustedDevicesSettings().environmentObject(settings).frame(width: 500, height: 300), width: 500, "settings-trusted", directory, .aqua)
-        render(ReceivedTextView(text: "https://example.com/a/very/long/link?with=query", kind: .url), width: 380, "text", directory, .aqua)
         render(MenuBarIconGallery(), width: 560, "menubar-icons", directory, .aqua)
 
         section = .send

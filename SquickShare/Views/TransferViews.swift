@@ -3,7 +3,7 @@ import QuickShareCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Accept/decline prompt, shown in the main window or, when notifications are off, in a small panel.
+/// Accept/decline prompt, shown on the main window's Receive page.
 struct IncomingRequestView: View {
     @EnvironmentObject private var model: AppModel
     let request: IncomingTransferRequest
@@ -209,46 +209,6 @@ struct RecentRow: View {
     private func copy(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-    }
-}
-
-/// Shows received text with Copy, and Open for web links. Nothing opens automatically.
-struct ReceivedTextView: View {
-    let text: String
-    let kind: TextKind
-    @State private var copied = false
-
-    private var webURL: URL? {
-        guard let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
-              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else { return nil }
-        return url
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ScrollView {
-                Text(text)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(minHeight: 60, maxHeight: 300)
-            HStack {
-                Button(copied ? "Copied" : "Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                    copied = true
-                }
-                .accessibilityLabel("Copy text")
-                Spacer()
-                if let webURL {
-                    Button("Open Link") { NSWorkspace.shared.open(webURL) }
-                        .keyboardShortcut(.defaultAction)
-                        .accessibilityLabel("Open link in browser")
-                }
-            }
-        }
-        .padding(16)
-        .frame(width: 380)
     }
 }
 

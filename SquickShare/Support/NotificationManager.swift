@@ -7,15 +7,23 @@ import UserNotifications
 @MainActor
 final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     enum Action { case accept, decline, open }
+    enum TextAction { case open, copy, show }
 
     private static let incomingCategory = "INCOMING"
     private static let resultCategory = "RESULT"
+    private static let linkCategory = "LINK"
+    private static let textCategory = "TEXT"
     private static let acceptAction = "ACCEPT"
     private static let declineAction = "DECLINE"
     private static let revealAction = "REVEAL"
+    private static let openLinkAction = "OPEN_LINK"
+    private static let copyAction = "COPY"
 
     var onAction: ((Action, UUID) -> Void)?
-    /// Whether banners or alerts can be shown. When false, requests appear in a small window instead.
+    var onTextAction: ((TextAction, UUID) -> Void)?
+    /// Called when notification permission changes (read again whenever the app becomes active).
+    var onAuthorizationChange: ((Bool) -> Void)?
+    /// Whether banners or alerts can be shown.
     private(set) var canShowAlerts = false
     private var center: UNUserNotificationCenter { UNUserNotificationCenter.current() }
 
@@ -24,9 +32,13 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let accept = UNNotificationAction(identifier: Self.acceptAction, title: "Accept", options: [])
         let decline = UNNotificationAction(identifier: Self.declineAction, title: "Decline", options: [.destructive])
         let reveal = UNNotificationAction(identifier: Self.revealAction, title: "Show in Finder", options: [.foreground])
+        let openLink = UNNotificationAction(identifier: Self.openLinkAction, title: "Open Link", options: [])
+        let copy = UNNotificationAction(identifier: Self.copyAction, title: "Copy", options: [])
         center.setNotificationCategories([
             UNNotificationCategory(identifier: Self.incomingCategory, actions: [accept, decline], intentIdentifiers: []),
             UNNotificationCategory(identifier: Self.resultCategory, actions: [reveal], intentIdentifiers: []),
+            UNNotificationCategory(identifier: Self.linkCategory, actions: [openLink, copy], intentIdentifiers: []),
+            UNNotificationCategory(identifier: Self.textCategory, actions: [copy], intentIdentifiers: []),
         ])
         center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in
             DispatchQueue.main.async { self?.refreshAuthorization() }
@@ -39,7 +51,11 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             let allowed = (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional)
                 && settings.alertSetting == .enabled
             DispatchQueue.main.async { [weak self] in
-                MainActor.assumeIsolated { self?.canShowAlerts = allowed }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.canShowAlerts = allowed
+                    self.onAuthorizationChange?(allowed)
+                }
             }
         }
     }
@@ -55,6 +71,18 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         content.userInfo = ["transferID": request.id.uuidString]
         content.sound = .default
         center.add(UNNotificationRequest(identifier: request.id.uuidString, content: content, trigger: nil))
+    }
+
+    /// "Link from Pixel 9" with Open Link and Copy, or "Text from Pixel 9" with Copy.
+    /// Nothing opens by itself: the link only opens when the user clicks Open Link.
+    func postText(id: UUID, text: String, isLink: Bool, from device: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "\(isLink ? "Link" : "Text") from \(device)"
+        content.body = String(text.prefix(300))
+        content.categoryIdentifier = isLink ? Self.linkCategory : Self.textCategory
+        content.userInfo = ["textID": id.uuidString]
+        content.sound = .default
+        center.add(UNNotificationRequest(identifier: id.uuidString, content: content, trigger: nil))
     }
 
     /// A finished transfer. With `reveal`, clicking shows the file in Finder and the notification
@@ -129,9 +157,16 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let actionID = response.actionIdentifier
         let transferID = (info["transferID"] as? String).flatMap(UUID.init(uuidString:))
         let revealPath = info["reveal"] as? String
+        let textID = (info["textID"] as? String).flatMap(UUID.init(uuidString:))
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
-                if let revealPath {
+                if let textID {
+                    switch actionID {
+                    case Self.openLinkAction: self.onTextAction?(.open, textID)
+                    case Self.copyAction: self.onTextAction?(.copy, textID)
+                    default: self.onTextAction?(.show, textID)
+                    }
+                } else if let revealPath {
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: revealPath)])
                 } else if let transferID {
                     switch actionID {

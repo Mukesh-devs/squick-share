@@ -44,7 +44,7 @@ Android has Quick Share. iPhone has AirDrop. Your Mac has… nothing that talks 
 | 📤 **Send to Android** | Drop files, folders or text on a nearby device in the squick-share window, click a device to choose files, or right-click in Finder › **Share › squick-share**. |
 | 📡 **Found faster** | When a nearby phone opens Quick Share, squick-share notices over Bluetooth and announces the Mac right away (it only listens; nothing is sent over Bluetooth). |
 | 📁 **Folders and many files** | Send whole folders (structure preserved) or dozens of files in one go. |
-| 🔗 **Links and text** | Shared links open in a window with **Open Link** and **Copy**. Nothing opens by itself. |
+| 🔗 **Links and text** | Received links and text arrive as a notification with **Open Link** and **Copy** (and stay in History). Nothing opens by itself. |
 | 📊 **Live progress** | Speed, time left and cancel for every transfer, plus a **progress ring in the menu bar** so you can follow it without opening anything. |
 | 👀 **Visibility control** | Visible to everyone, hidden, or visible for 10 minutes with a countdown. |
 | ✅ **Trusted devices** | Optionally auto-accept from your own phone after you approve it once. |

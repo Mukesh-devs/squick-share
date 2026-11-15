@@ -53,6 +53,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var nearbyDevices: [DiscoveredDevice] = []
     @Published private(set) var qrSession: QRCodeSession?
     @Published private(set) var isMainWindowOpen = false
+    /// The last text or link that arrived, shown as a banner in the window until dismissed.
+    @Published private(set) var receivedText: ReceivedTextItem?
+    /// Whether macOS lets the app show notifications.
+    @Published private(set) var notificationsAllowed = true
     @Published var notice: String?
     /// The main window's page (kept here so it survives closing and reopening the window).
     @Published var section: MainSection = .send
@@ -72,6 +76,8 @@ final class AppModel: ObservableObject {
     private var ticker: Timer?
     private var cancellables: Set<AnyCancellable> = []
     private var started = false
+    /// Recent received texts by notification ID, for the notification's Open Link and Copy buttons.
+    private var notifiedTexts: [UUID: ReceivedTextItem] = [:]
     /// A Sendable weak handle for callbacks that arrive on background queues.
     private lazy var weakRef = WeakRef(self)
 
@@ -89,9 +95,12 @@ final class AppModel: ObservableObject {
         started = true
         diagnostics.info("app", "squick-share \(Self.appVersion) starting on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
         notifications.onAction = { [weak self] action, id in self?.handleNotificationAction(action, id) }
+        notifications.onTextAction = { [weak self] action, id in self?.handleTextAction(action, id) }
+        notifications.onAuthorizationChange = { [weak self] allowed in
+            if self?.notificationsAllowed != allowed { self?.notificationsAllowed = allowed }
+        }
         notifications.setUp()
         windows.onMainWindowChange = { [weak self] event in self?.mainWindowChanged(event) }
-        windows.alwaysShowsDockIcon = !settings.showInMenuBar
 
         // Created before anything browses, so our own advertisement is never listed as a nearby device.
         receiver = makeReceiver()
@@ -110,8 +119,11 @@ final class AppModel: ObservableObject {
         settings.$useBluetooth.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async { self?.applyBluetooth() }
         }.store(in: &cancellables)
-        settings.$showInMenuBar.dropFirst().sink { [weak self] show in
-            DispatchQueue.main.async { self?.applyMenuBarIcon(show) }
+        settings.$showInMenuBar.dropFirst().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.applyDockAndMenuBar() }
+        }.store(in: &cancellables)
+        settings.$showInDock.dropFirst().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.applyDockAndMenuBar() }
         }.store(in: &cancellables)
 
         let monitor = NWPathMonitor()
@@ -140,7 +152,7 @@ final class AppModel: ObservableObject {
         let item = StatusItemController(model: self)
         item.install(visible: settings.showInMenuBar)
         statusItem = item
-        windows.updateActivationPolicy()
+        applyDockAndMenuBar()
     }
 
     var identity: LocalIdentity {
@@ -276,9 +288,11 @@ final class AppModel: ObservableObject {
         receiver?.reannounce(reason: "a nearby phone started Quick Share")
     }
 
-    private func applyMenuBarIcon(_ show: Bool) {
-        statusItem?.setVisible(show)
-        windows.alwaysShowsDockIcon = !show
+    /// The menu bar icon, and whether the Dock icon stays without a window. Without the menu bar icon
+    /// the Dock icon is the only way back in, so it always stays then.
+    private func applyDockAndMenuBar() {
+        statusItem?.setVisible(settings.showInMenuBar)
+        windows.alwaysShowsDockIcon = settings.showInDock || !settings.showInMenuBar
         windows.updateActivationPolicy()
     }
 
@@ -402,7 +416,7 @@ final class AppModel: ObservableObject {
         case .receivedText(let id, let text, let kind):
             update(id) { $0.texts.append(text) }
             let device = transfers.first { $0.id == id }?.deviceName ?? "a device"
-            windows.showReceivedText(text: text, kind: kind, from: device)
+            presentReceivedText(ReceivedTextItem(id: UUID(), text: text, kind: kind, deviceName: device))
         case .completed(let id):
             finish(id, error: nil)
         case .failed(let id, let error):
@@ -429,19 +443,55 @@ final class AppModel: ObservableObject {
     }
 
     /// Like AirDrop: a notification with Accept and Decline, or the main window when it is in front.
-    /// The request window is only a fallback for when notifications can't be shown, and it never
-    /// takes keyboard focus, so typing elsewhere can't accept a transfer by accident.
+    /// No window ever pops up over other apps: without notifications, the request waits in the window
+    /// (Receive page and sidebar badge) and in the menu bar menu (dot on the icon), with a sound.
     private func presentRequest(_ request: IncomingTransferRequest) {
         let windowInFront = isMainWindowOpen && NSApp.isActive
-        var notified = false
         if !windowInFront, settings.notificationsEnabled, notifications.canShowAlerts {
             notifications.postIncoming(request)
-            notified = true
+        } else {
+            NSSound(named: "Glass")?.play()
         }
-        if !notified, !isMainWindowOpen {
-            windows.showIncomingRequest(request, model: self)
+    }
+
+    /// A banner in the window, and a notification with Open Link / Copy when the window isn't in front.
+    private func presentReceivedText(_ item: ReceivedTextItem) {
+        receivedText = item
+        notifiedTexts[item.id] = item
+        if notifiedTexts.count > 20, let oldest = notifiedTexts.keys.first(where: { $0 != item.id }) {
+            notifiedTexts[oldest] = nil
         }
-        if !notified { NSSound(named: "Glass")?.play() }
+        let windowInFront = isMainWindowOpen && NSApp.isActive
+        if !windowInFront, settings.notificationsEnabled, notifications.canShowAlerts {
+            notifications.postText(id: item.id, text: item.text, isLink: item.webURL != nil, from: item.deviceName)
+        }
+    }
+
+    private func handleTextAction(_ action: NotificationManager.TextAction, _ id: UUID) {
+        guard let item = notifiedTexts[id] else {
+            showMainWindow(section: .history)
+            return
+        }
+        switch action {
+        case .open: openReceivedText(item)
+        case .copy: copyText(item.text)
+        case .show: showMainWindow(section: .history)
+        }
+    }
+
+    /// Opens a received link in the browser (only on the user's request).
+    func openReceivedText(_ item: ReceivedTextItem) {
+        if let url = item.webURL { NSWorkspace.shared.open(url) }
+        if receivedText?.id == item.id { receivedText = nil }
+    }
+
+    func copyReceivedText(_ item: ReceivedTextItem) {
+        copyText(item.text)
+        if receivedText?.id == item.id { receivedText = nil }
+    }
+
+    func dismissReceivedText() {
+        receivedText = nil
     }
 
     func accept(_ request: IncomingTransferRequest, trust: Bool) {
@@ -529,7 +579,8 @@ final class AppModel: ObservableObject {
             guard error != .cancelledByUser, !(error == .declined && transfer.direction == .incoming) else { return }
             notifications.postResult(title: "Transfer failed", body: "\(transfer.deviceName): \(error.userMessage)", reveal: nil)
         } else if transfer.direction == .incoming {
-            guard !transfer.savedFiles.isEmpty || !transfer.texts.isEmpty else { return }
+            // Text-only transfers already got their own notification with Open Link / Copy.
+            guard !transfer.savedFiles.isEmpty else { return }
             let items = Format.countSummary(files: transfer.savedFiles.count, texts: transfer.texts.count,
                                             bytes: transfer.savedFiles.isEmpty ? 0 : transfer.totalBytes)
             notifications.postResult(title: "Transfer complete", body: "\(items) received from \(transfer.deviceName)",
@@ -575,6 +626,18 @@ final class AppModel: ObservableObject {
             NSWorkspace.shared.open(settings.downloadFolder)
         } else {
             NSWorkspace.shared.activateFileViewerSelecting(existing)
+        }
+    }
+
+    /// What opening a History entry does: received files in Finder, a link in the browser,
+    /// other text to the clipboard.
+    func open(_ recent: RecentTransfer) {
+        if recent.direction == .incoming, !recent.fileURLs.isEmpty {
+            showInFinder(recent)
+        } else if let text = recent.text {
+            if let url = Format.webURL(text) { NSWorkspace.shared.open(url) } else { copyText(text) }
+        } else {
+            showMainWindow(section: .history)
         }
     }
 
@@ -875,6 +938,13 @@ final class AppModel: ObservableObject {
                            message: "The other device declined the transfer."),
         ]
         pendingSendItems = [.text("Hello from the Mac")]
+        receivedText = ReceivedTextItem(id: UUID(), text: "https://example.com/article", kind: .url, deviceName: "Pixel 9")
+    }
+
+    /// Text arriving from a phone, as if it came over the network.
+    func debugReceiveText(_ text: String) {
+        presentReceivedText(ReceivedTextItem(id: UUID(), text: text, kind: Format.webURL(text) != nil ? .url : .text,
+                                             deviceName: "Test Phone"))
     }
 
     /// Only nearby devices and recent transfers: what the window looks like most of the time.
@@ -883,6 +953,7 @@ final class AppModel: ObservableObject {
         transfers = []
         pendingSendItems = []
         notice = nil
+        receivedText = nil
     }
 
     /// Nothing nearby yet: the searching state.

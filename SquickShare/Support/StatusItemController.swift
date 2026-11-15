@@ -214,13 +214,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func openRecent(_ sender: NSMenuItem) {
         guard let model, let id = sender.representedObject as? UUID,
               let recent = model.recents.first(where: { $0.id == id }) else { return }
-        if recent.direction == .incoming, !recent.fileURLs.isEmpty {
-            model.showInFinder(recent)
-        } else if let text = recent.text {
-            model.copyText(text)
-        } else {
-            model.showMainWindow(section: .history)
-        }
+        model.open(recent)
     }
 
     @objc private func openDownloads() { model?.openDownloadFolder() }

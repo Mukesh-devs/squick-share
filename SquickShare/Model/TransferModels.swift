@@ -77,6 +77,17 @@ struct ActiveTransfer: Identifiable {
     }
 }
 
+/// Text or a link that arrived, offered with Open and Copy. Nothing opens by itself.
+struct ReceivedTextItem: Identifiable, Equatable {
+    let id: UUID
+    let text: String
+    let kind: TextKind
+    let deviceName: String
+
+    /// A web link that can be opened in the browser, or nil for other text.
+    var webURL: URL? { Format.webURL(text) }
+}
+
 /// A finished transfer kept in the "Recent" list (persisted).
 struct RecentTransfer: Identifiable, Codable {
     let id: UUID
@@ -98,6 +109,14 @@ struct RecentTransfer: Identifiable, Codable {
 }
 
 enum Format {
+    /// `text` as an http(s) link, or nil.
+    static func webURL(_ text: String) -> URL? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.contains(" "), let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme), url.host != nil else { return nil }
+        return url
+    }
+
     static func bytes(_ count: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: count, countStyle: .file)
     }

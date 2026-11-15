@@ -13,13 +13,17 @@ struct MainWindowView: View {
     @State private var composingText = false
 
     var body: some View {
+        // The title bar is transparent and the window content runs under it (WindowCoordinator):
+        // backgrounds fill that strip, so the sidebar reaches the top under the window buttons, while
+        // the content itself stays in the safe area below it.
         HStack(spacing: 0) {
             Sidebar()
                 .frame(width: 200)
             Divider()
+                .ignoresSafeArea()
             page
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .windowBackgroundColor))
+                .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         }
         .frame(minWidth: 700, maxWidth: .infinity, minHeight: 480, maxHeight: .infinity)
         // Files dropped anywhere in the window go to the send list.
@@ -73,7 +77,7 @@ private struct Sidebar: View {
             Divider()
             SidebarStatus()
         }
-        .background(SidebarBackground())
+        .background(SidebarBackground().ignoresSafeArea())
     }
 
     private func row(_ section: MainSection) -> some View {
@@ -185,6 +189,19 @@ private struct StatusBanners: View {
             } else if case .failed(let message) = model.receiverStatus {
                 Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
                        text: "This Mac can't be discovered right now (\(message)). squick-share keeps retrying.") { EmptyView() }
+            }
+            if let item = model.receivedText {
+                Banner(symbol: item.webURL != nil ? "link" : "text.bubble", tint: .accentColor,
+                       text: "\(item.deviceName) sent \(item.webURL != nil ? "a link" : "text"): \(String(item.text.prefix(300)))") {
+                    HStack {
+                        if item.webURL != nil {
+                            Button("Open Link") { model.openReceivedText(item) }
+                        }
+                        Button("Copy") { model.copyReceivedText(item) }
+                        Button("Dismiss") { model.dismissReceivedText() }
+                            .buttonStyle(.link)
+                    }
+                }
             }
             if let notice = model.notice {
                 Banner(symbol: "info.circle.fill", tint: .blue, text: notice) {
@@ -419,23 +436,76 @@ private struct SaveLocationRow: View {
 
 private struct HistoryPage: View {
     @EnvironmentObject private var model: AppModel
+    @State private var query = ""
+    @State private var selection: UUID?
+    @FocusState private var searchFocused: Bool
+
+    private var filtered: [RecentTransfer] {
+        let terms = query.trimmingCharacters(in: .whitespaces)
+        guard !terms.isEmpty else { return model.recents }
+        return model.recents.filter { recent in
+            ([recent.title, recent.deviceName, recent.text ?? ""] + recent.itemNames)
+                .contains { $0.localizedCaseInsensitiveContains(terms) }
+        }
+    }
 
     var body: some View {
+        let items = filtered
         Page {
-            PageHeader(title: "History", subtitle: "Your last 30 transfers. Click the magnifier to show received files in Finder.") {
+            PageHeader(title: "History", subtitle: "Your last 30 transfers. Double-click or press Return to open one.") {
                 if !model.recents.isEmpty {
+                    TextField("Search", text: $query)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 180)
+                        .focused($searchFocused)
+                        .help("Search (⌘F)")
+                        .accessibilityLabel("Search history")
                     Button("Clear History") { model.clearRecents() }
                 }
             }
-            if model.notice != nil { StatusBanners() }
+            if model.hasStatusBanner { StatusBanners() }
             if !model.pendingRequests.isEmpty { RequestStrip() }
             if model.recents.isEmpty {
                 EmptyStateView(symbol: "clock", title: "No transfers yet",
                                message: "Files and links you send or receive appear here.")
+            } else if items.isEmpty {
+                EmptyStateView(symbol: "magnifyingglass", title: "No matches",
+                               message: "Nothing in your history matches “\(query)”.")
             } else {
-                GroupedList(items: model.recents) { RecentRow(recent: $0) }
+                GroupedList(items: items) { recent in
+                    RecentRow(recent: recent)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(selection == recent.id ? Color.accentColor.opacity(0.18) : Color.clear))
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 2) { model.open(recent) }
+                        .onTapGesture { selection = recent.id }
+                        .accessibilityAddTraits(selection == recent.id ? .isSelected : [])
+                }
                 Button("Open Downloads Folder") { model.openDownloadFolder() }
             }
+        }
+        .background {
+            // Keyboard: ⌘F searches; Return opens the selected entry; Escape clears the search.
+            Group {
+                Button("Search") { searchFocused = true }
+                    .keyboardShortcut("f")
+                Button("Open Selected") {
+                    if let id = selection, let recent = model.recents.first(where: { $0.id == id }) { model.open(recent) }
+                }
+                .keyboardShortcut(.return, modifiers: [])
+                .disabled(selection == nil || searchFocused)
+                Button("Clear Search") {
+                    query = ""
+                    searchFocused = false
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+                .disabled(query.isEmpty && !searchFocused)
+            }
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         }
     }
 }
@@ -462,7 +532,7 @@ extension AppModel {
     /// Whether `StatusBanners` has something to show.
     var hasStatusBanner: Bool {
         if case .failed = receiverStatus { return true }
-        return localNetworkDenied || !hasNetwork || notice != nil
+        return localNetworkDenied || !hasNetwork || notice != nil || receivedText != nil
     }
 }
 

@@ -41,26 +41,29 @@ private struct SettingsOverview: View {
     var body: some View {
         let query = model.settingsQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         PageScroll(spacing: 0) {
-            PageTitle(title: "Settings", subtitle: "How this Mac appears to others, where files go, and more.")
-                .padding(.bottom, 8)
-            Group {
-                if !query.isEmpty {
-                    let matches = SettingsItem.allCases.filter { $0.matches(query) }
-                    if matches.isEmpty {
-                        EmptyStateView(symbol: "magnifyingglass", title: "No matching settings",
-                                       message: "Nothing matches “\(query)”.")
-                            .padding(.top, 12)
+            // One readable column in the middle of the page, like System Settings.
+            VStack(alignment: .leading, spacing: 0) {
+                PageTitle(title: "Settings", subtitle: "How this Mac appears to others, where files go, and more.")
+                    .padding(.bottom, 8)
+                Group {
+                    if !query.isEmpty {
+                        let matches = SettingsItem.allCases.filter { $0.matches(query) }
+                        if matches.isEmpty {
+                            EmptyStateView(symbol: "magnifyingglass", title: "No matching settings",
+                                           message: "Nothing matches “\(query)”.")
+                                .padding(.top, 12)
+                        } else {
+                            SettingsGroup(title: "Results", items: matches)
+                        }
                     } else {
-                        SettingsGroup(title: "Results", items: matches)
+                        SettingsGroup(title: "This Mac", items: SettingsItem.thisMac)
+                        SettingsGroup(title: "App", items: SettingsItem.app)
+                        SettingsGroup(title: "Connection", items: SettingsItem.connection)
                     }
-                } else {
-                    SettingsGroup(title: "This Mac", items: SettingsItem.thisMac)
-                    SettingsGroup(title: "App", items: SettingsItem.app)
-                    SettingsGroup(title: "Connection", items: SettingsItem.connection)
                 }
             }
-            // One readable column, like System Settings.
             .frame(maxWidth: 680, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
     }
 }
@@ -441,10 +444,12 @@ private struct SettingsSubpage<Content: View>: View {
             content()
                 // The page's own background, not the form's.
                 .scrollContentBackground(.hidden)
-                .frame(maxWidth: 720, maxHeight: .infinity, alignment: .top)
+                .frame(maxHeight: .infinity, alignment: .top)
                 .padding(.horizontal, 8)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // One column in the middle of the page, like the Settings overview.
+        .frame(maxWidth: 736, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 

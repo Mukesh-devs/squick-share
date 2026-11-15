@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>squick-share — Quick Share for your Mac</title>
-<meta name="description" content="squick-share is a free, native macOS menu bar app that sends and receives files, folders and links with Android phones using Quick Share. No cable, no cloud, no account.">
+<title>SQuick Share — Quick Share for your Mac</title>
+<meta name="description" content="SQuick Share is a free, native macOS menu bar app that sends and receives files, folders and links with Android phones using Quick Share. No cable, no cloud, no account.">
 <!-- Link previews (WhatsApp, Slack, X, LinkedIn…). These need full addresses, not relative paths.
      Regenerate the image with: swift scripts/make-social-preview.swift -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="squick-share">
-<meta property="og:title" content="squick-share — Quick Share for your Mac">
+<meta property="og:site_name" content="SQuick Share">
+<meta property="og:title" content="SQuick Share — Quick Share for your Mac">
 <meta property="og:description" content="AirDrop-style sharing between your Mac and Android phones. Free, private, encrypted, native.">
 <meta property="og:url" content="https://mukesh-devs.github.io/squick-share/">
 <meta property="og:image" content="https://mukesh-devs.github.io/squick-share/images/social-preview.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="squick-share: Quick Share for your Mac, with screenshots of the menu bar window and an incoming transfer">
+<meta property="og:image:alt" content="SQuick Share: Quick Share for your Mac, with screenshots of the menu bar window and an incoming transfer">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="squick-share — Quick Share for your Mac">
+<meta name="twitter:title" content="SQuick Share — Quick Share for your Mac">
 <meta name="twitter:description" content="AirDrop-style sharing between your Mac and Android phones. Free, private, encrypted, native.">
 <meta name="twitter:image" content="https://mukesh-devs.github.io/squick-share/images/social-preview.png">
 <link rel="icon" type="image/png" href="images/app-icon.png">
@@ -199,7 +199,7 @@
 
 <nav>
   <div class="wrap">
-    <a class="brand" href="#top"><img src="images/app-icon.png" alt="">squick-share</a>
+    <a class="brand" href="#top"><img src="images/app-icon.png" alt="">SQuick Share</a>
     <div class="links">
       <a href="#features">Features</a>
       <a href="#tour">Screenshots</a>
@@ -216,7 +216,7 @@
 
 <header class="hero" id="top">
   <div class="wrap">
-    <img class="icon" src="images/app-icon.png" alt="squick-share app icon">
+    <img class="icon" src="images/app-icon.png" alt="SQuick Share app icon">
     <h1>Quick Share<br><span>for your Mac.</span></h1>
     <p class="lead">Send photos, videos, files, folders and links between your Mac and Android phones, using the Quick Share button that's already on every Android device. No cable. No cloud. No account.</p>
     <div class="buttons">
@@ -225,7 +225,7 @@
     </div>
     <p class="note">Free and open source (MIT) · macOS 13 Ventura or later · Apple Silicon &amp; Intel</p>
     <div class="hero-shots">
-      <img class="a" src="images/popover-idle-light.png" alt="The squick-share menu bar window">
+      <img class="a" src="images/popover-idle-light.png" alt="The SQuick Share menu bar window">
       <img class="b" src="images/request-dark.png" alt="An incoming transfer with its PIN, in dark mode">
       <img class="c" src="images/send-list.png" alt="Choosing a nearby device to send to">
     </div>
@@ -261,7 +261,7 @@
   <div class="wrap">
     <div class="kicker">Screenshots</div>
     <h2>A tour of the app</h2>
-    <p class="sub">squick-share lives in your menu bar. Every screen below is rendered from the real app.</p>
+    <p class="sub">SQuick Share lives in your menu bar. Every screen below is rendered from the real app.</p>
 
     <div class="shot">
       <div class="media"><div class="pair">
@@ -398,14 +398,14 @@
     <div class="steps">
       <div class="step">
         <h3>Copy the app to Applications</h3>
-        <p>Double-click the <code>.dmg</code>, then drag <b>squick-share</b> onto the <b>Applications</b> folder in the window that opens.</p>
+        <p>Double-click the <code>.dmg</code>, then drag <b>SQuick Share</b> onto the <b>Applications</b> folder in the window that opens.</p>
       </div>
       <div class="step">
         <h3>Allow it to open (first launch only)</h3>
-        <p>squick-share is free and ad-hoc signed rather than notarized by Apple, so macOS asks you to confirm it once. Pick one:</p>
-        <div class="option"><b>A. System Settings:</b> open squick-share and click <b>Done</b> on the warning. Go to <b>System Settings › Privacy &amp; Security</b>, scroll down, click <b>Open Anyway</b> and confirm. Open the app again and click <b>Open</b>. (On macOS 13 and 14: right-click the app › <b>Open</b> › <b>Open</b>.)</div>
+        <p>SQuick Share is free and ad-hoc signed rather than notarized by Apple, so macOS asks you to confirm it once. Pick one:</p>
+        <div class="option"><b>A. System Settings:</b> open SQuick Share and click <b>Done</b> on the warning. Go to <b>System Settings › Privacy &amp; Security</b>, scroll down, click <b>Open Anyway</b> and confirm. Open the app again and click <b>Open</b>. (On macOS 13 and 14: right-click the app › <b>Open</b> › <b>Open</b>.)</div>
         <div class="option"><b>B. Terminal:</b> run one command:
-          <pre><code>xattr -dr com.apple.quarantine /Applications/squick-share.app &amp;&amp; open /Applications/squick-share.app</code></pre>
+          <pre><code>xattr -dr com.apple.quarantine &quot;/Applications/SQuick Share.app&quot; &amp;&amp; open &quot;/Applications/SQuick Share.app&quot;</code></pre>
         </div>
       </div>
     </div>
@@ -431,7 +431,7 @@
       <div class="card">
         <h3>💻 Mac → Phone</h3>
         <ol>
-          <li>Drop files, folders or text onto the squick-share window, or right-click in Finder › <b>Share › squick-share</b>.</li>
+          <li>Drop files, folders or text onto the SQuick Share window, or right-click in Finder › <b>Share › SQuick Share</b>.</li>
           <li>On the phone, open <b>Files › Quick Share › Receive</b> (or the Quick Share tile) and keep it open.</li>
           <li>Click the phone when it appears, then accept on the phone.</li>
         </ol>
@@ -445,9 +445,9 @@
   <div class="wrap">
     <div class="kicker">How it works</div>
     <h2>A from-scratch Quick Share implementation in Swift</h2>
-    <p class="sub">squick-share speaks Google's Quick Share protocol over Wi-Fi. Here's a transfer from a phone, step by step.</p>
+    <p class="sub">SQuick Share speaks Google's Quick Share protocol over Wi-Fi. Here's a transfer from a phone, step by step.</p>
     <div class="flow">
-      <div class="row"><div class="who">Phone</div><div class="msg plain arrow-l">Bonjour / mDNS announcement<small>"squick-share is here" (service _FC9F5ED42C8A._tcp)</small></div><div class="who">Mac</div></div>
+      <div class="row"><div class="who">Phone</div><div class="msg plain arrow-l">Bonjour / mDNS announcement<small>"SQuick Share is here" (service _FC9F5ED42C8A._tcp)</small></div><div class="who">Mac</div></div>
       <div class="row"><div class="who">Phone</div><div class="msg plain arrow-r">TCP connection + ConnectionRequest<small>the phone's name and type</small></div><div class="who">Mac</div></div>
       <div class="row"><div class="who">Phone</div><div class="msg plain arrow-r">UKEY2 key exchange<small>P-256 elliptic-curve Diffie-Hellman with a commitment</small></div><div class="who">Mac</div></div>
       <div class="note">🔢 Both devices derive the same 4-digit PIN from the shared secret</div>
@@ -487,7 +487,7 @@
   <div class="wrap">
     <div class="kicker">Privacy &amp; security</div>
     <h2>Your files never leave your network</h2>
-    <p class="sub">No servers, no accounts, no analytics. squick-share only talks to devices on your local network.</p>
+    <p class="sub">No servers, no accounts, no analytics. SQuick Share only talks to devices on your local network.</p>
     <div class="grid g2">
       <div class="card"><div class="emoji">🔐</div><h3>End-to-end encrypted</h3><p>Fresh keys for every transfer. The PIN on both screens confirms you're connected to the right device.</p></div>
       <div class="card"><div class="emoji">🧹</div><h3>Safe file handling</h3><p>Incoming names are sanitized (no <code>../</code> tricks, hidden files or spoofed extensions). Files are written only inside your chosen folder and never opened automatically.</p></div>
@@ -522,7 +522,7 @@
       <ul>
         <li>Make sure both are on the same Wi-Fi network, not a guest network, and no VPN is running.</li>
         <li>Check the status line says <b>Visible as …</b>, then choose <b>Announce Again</b> from the eye menu.</li>
-        <li>If the window says <b>Local network permission is off</b>, click <b>Open System Settings</b> and turn squick-share on.</li>
+        <li>If the window says <b>Local network permission is off</b>, click <b>Open System Settings</b> and turn SQuick Share on.</li>
         <li>Some routers block the multicast traffic discovery uses. Quick test: connect the Mac to the phone's hotspot.</li>
       </ul>
     </details>
@@ -530,10 +530,10 @@
       <p>Android phones only advertise themselves while they're ready to receive. Open <b>Files › Quick Share › Receive</b> (or the Quick Share tile in Quick Settings) and keep that screen open.</p>
     </details>
     <details><summary>Why does macOS warn me when I first open it?</summary>
-      <p>squick-share is free and ad-hoc signed rather than notarized through Apple's paid program. Follow <a href="#install">step 2</a> once and it opens normally afterwards.</p>
+      <p>SQuick Share is free and ad-hoc signed rather than notarized through Apple's paid program. Follow <a href="#install">step 2</a> once and it opens normally afterwards.</p>
     </details>
     <details><summary>Does it work with iPhone?</summary>
-      <p>No. iPhones use AirDrop, which already works with your Mac. squick-share is for Android's Quick Share.</p>
+      <p>No. iPhones use AirDrop, which already works with your Mac. SQuick Share is for Android's Quick Share.</p>
     </details>
     <details><summary>Is it safe to accept files?</summary>
       <p>Files are only saved, never opened, and only inside your chosen folder. Check the PIN matches the sender's screen, and decline anything you don't expect.</p>

@@ -38,7 +38,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             guard statusItem == nil else { return }
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             item.menu = menu
-            item.button?.toolTip = "squick-share"
+            item.button?.toolTip = "SQuick Share"
             statusItem = item
             shownState = nil
             refreshIcon()
@@ -88,7 +88,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
         if !transfers.isEmpty { menu.addItem(.separator()) }
 
-        menu.addItem(actionItem("Open squick-share", symbol: "macwindow", action: #selector(openMain), object: nil))
+        menu.addItem(actionItem("Open SQuick Share", symbol: "macwindow", action: #selector(openMain), object: nil))
         menu.addItem(actionItem("Send Files…", symbol: "square.and.arrow.up", action: #selector(sendFiles), object: nil))
         menu.addItem(visibilityItem(model))
         menu.addItem(recentItem(model))
@@ -96,7 +96,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let settings = actionItem("Settings…", symbol: "gearshape", action: #selector(openSettings), object: nil)
         settings.keyEquivalent = ","
         menu.addItem(settings)
-        let quit = actionItem("Quit squick-share", symbol: "power", action: #selector(quit), object: nil)
+        let quit = actionItem("Quit SQuick Share", symbol: "power", action: #selector(quit), object: nil)
         quit.keyEquivalent = "q"
         menu.addItem(quit)
     }
@@ -240,7 +240,7 @@ struct MenuHeaderView: View {
                 .frame(width: 34, height: 34)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text("squick-share").font(.system(size: 13, weight: .semibold))
+                Text("SQuick Share").font(.system(size: 13, weight: .semibold))
                 HStack(spacing: 5) {
                     StatusDot(color: model.statusColor)
                     Text(model.shortStatus)

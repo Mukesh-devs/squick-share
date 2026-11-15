@@ -99,7 +99,7 @@ final class AppModel: ObservableObject {
     func start() {
         guard !started else { return }
         started = true
-        diagnostics.info("app", "squick-share \(Self.appVersion) starting on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        diagnostics.info("app", "SQuick Share \(Self.appVersion) starting on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
         notifications.onAction = { [weak self] action, id in self?.handleNotificationAction(action, id) }
         notifications.onTextAction = { [weak self] action, id in self?.handleTextAction(action, id) }
         notifications.onAuthorizationChange = { [weak self] allowed in
@@ -369,7 +369,7 @@ final class AppModel: ObservableObject {
     }
 
     var menuBarAccessibilityLabel: String {
-        var parts = ["squick-share"]
+        var parts = ["SQuick Share"]
         if let activity = activitySummary { parts.append(activity) }
         if !pendingRequests.isEmpty { parts.append("request waiting") }
         return parts.joined(separator: ", ")

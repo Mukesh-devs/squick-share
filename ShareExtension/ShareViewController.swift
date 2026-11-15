@@ -8,7 +8,7 @@ final class ShareViewController: NSViewController {
     override var nibName: NSNib.Name? { nil }
 
     override func loadView() {
-        let label = NSTextField(labelWithString: "Opening squick-share…")
+        let label = NSTextField(labelWithString: "Opening SQuick Share…")
         label.alignment = .center
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 60))
         label.frame = view.bounds.insetBy(dx: 10, dy: 18)
@@ -23,7 +23,7 @@ final class ShareViewController: NSViewController {
     }
 
     private var appURL: URL {
-        // .../squick-share.app/Contents/PlugIns/ShareExtension.appex
+        // .../SQuick Share.app/Contents/PlugIns/ShareExtension.appex
         Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
 

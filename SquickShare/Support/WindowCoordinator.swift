@@ -63,7 +63,7 @@ final class WindowCoordinator: NSObject, NSWindowDelegate, NSToolbarDelegate, NS
         window.contentMinSize = NSSize(width: 760, height: 520)
         // The sidebar runs to the top under the window buttons, like Finder and System Settings.
         // The title stays set for the Window menu and Mission Control.
-        window.title = "squick-share"
+        window.title = "SQuick Share"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none

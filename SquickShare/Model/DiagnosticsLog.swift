@@ -47,7 +47,7 @@ final class DiagnosticsLog: @unchecked Sendable {
         lock.unlock()
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
-        var lines = ["squick-share diagnostic log", String(repeating: "=", count: 27)]
+        var lines = ["SQuick Share diagnostic log", String(repeating: "=", count: 27)]
         lines += header.sorted { $0.key < $1.key }.map { "\($0.key): \($0.value)" }
         lines.append("")
         lines += snapshot.map { entry in

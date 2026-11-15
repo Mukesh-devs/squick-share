@@ -1,4 +1,4 @@
-# Builds squick-share for Apple Silicon (arm64), Intel (x86_64) and both (universal), and packages
+# Builds SQuick Share for Apple Silicon (arm64), Intel (x86_64) and both (universal), and packages
 # each as squick-share-<version>-<arch>.dmg and squick-share-<version>-<arch>.zip.
 #   - Push a tag like v1.0.0  -> tests, builds, and publishes a GitHub Release with all six files.
 #   - Run manually (Actions tab -> Release -> Run workflow) -> same build; files saved as a workflow artifact.
@@ -79,10 +79,10 @@ jobs:
 
           ### Install in 2 steps
 
-          1. Open the `.dmg` and drag **squick-share** onto **Applications**.
+          1. Open the `.dmg` and drag **SQuick Share** onto **Applications**.
           2. First launch only (the app is ad-hoc signed, not notarized): open it once, then go to **System Settings › Privacy & Security › Open Anyway**. Or run:
              ```sh
-             xattr -dr com.apple.quarantine /Applications/squick-share.app && open /Applications/squick-share.app
+             xattr -dr com.apple.quarantine "/Applications/SQuick Share.app" && open "/Applications/SQuick Share.app"
              ```
 
           When macOS asks to find devices on your local network, click **Allow**. Full guide: [documentation](__DOCS_URL__#install).
@@ -90,4 +90,4 @@ jobs:
           sed -i '' -e "s|__DOCS_URL__|${DOCS_URL}|g" -e "s|__VERSION__|${VERSION}|g" release-notes.md
           # The notes above come first; GitHub appends the generated "What's changed" list.
           gh release create "$GITHUB_REF_NAME" build/release/*.dmg build/release/*.zip \
-            --title "squick-share $GITHUB_REF_NAME" --notes-file release-notes.md --generate-notes
+            --title "SQuick Share $GITHUB_REF_NAME" --notes-file release-notes.md --generate-notes

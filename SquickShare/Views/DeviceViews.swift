@@ -26,7 +26,7 @@ struct SendPage: View {
             if model.localNetworkDenied {
                 SectionHeader(title: "Nearby Devices")
                 EmptyStateView(symbol: "network.slash", title: "Can't look for devices",
-                               message: "Allow squick-share to find devices on your local network in System Settings.")
+                               message: "Allow SQuick Share to find devices on your local network in System Settings.")
             } else if let qr = model.qrSession {
                 SectionHeader(title: "Scan to Send")
                 QRCodePanel(session: qr)

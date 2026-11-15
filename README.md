@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/images/app-icon.png" width="128" alt="squick-share icon">
+<img src="docs/images/app-icon.png" width="128" alt="SQuick Share icon">
 
-# squick-share
+# SQuick Share
 
 ### Quick Share for your Mac. AirDrop-style sharing with Android, finally.
 
@@ -19,7 +19,7 @@ No cable. No cloud. No account. Straight over your Wi-Fi.
 
 <br>
 
-<img src="docs/images/popover-idle-light.png" width="300" alt="squick-share menu bar window">&nbsp;&nbsp;
+<img src="docs/images/popover-idle-light.png" width="300" alt="SQuick Share menu bar window">&nbsp;&nbsp;
 <img src="docs/images/request-dark.png" width="320" alt="Incoming transfer with PIN">&nbsp;&nbsp;
 <img src="docs/images/send-list.png" width="300" alt="Choosing a nearby device">
 
@@ -27,7 +27,7 @@ No cable. No cloud. No account. Straight over your Wi-Fi.
 
 ---
 
-## Why squick-share?
+## Why SQuick Share?
 
 Android has Quick Share. iPhone has AirDrop. Your Mac has… nothing that talks to Android. Until now.
 
@@ -41,8 +41,8 @@ Android has Quick Share. iPhone has AirDrop. Your Mac has… nothing that talks 
 | | |
 |---|---|
 | 📥 **Receive from Android** | Accept or decline with a prompt and a notification showing who's sending, what, how big, and a **4-digit PIN** to confirm it's really them. |
-| 📤 **Send to Android** | Drop files, folders or text on a nearby device in the squick-share window, click a device to choose files, or right-click in Finder › **Share › squick-share**. |
-| 📡 **Found faster** | When a nearby phone opens Quick Share, squick-share notices over Bluetooth and announces the Mac right away (it only listens; nothing is sent over Bluetooth). |
+| 📤 **Send to Android** | Drop files, folders or text on a nearby device in the SQuick Share window, click a device to choose files, or right-click in Finder › **Share › SQuick Share**. |
+| 📡 **Found faster** | When a nearby phone opens Quick Share, SQuick Share notices over Bluetooth and announces the Mac right away (it only listens; nothing is sent over Bluetooth). |
 | 📁 **Folders and many files** | Send whole folders (structure preserved) or dozens of files in one go. |
 | 🔗 **Links and text** | Received links and text arrive as a notification with **Open Link** and **Copy** (and stay in History). Nothing opens by itself. |
 | 📊 **Live progress** | Speed, time left and cancel for every transfer, plus a **progress ring in the menu bar** so you can follow it without opening anything. |
@@ -66,19 +66,19 @@ Not sure which Mac you have? Apple menu › **About This Mac**: "Chip: Apple M�
 
 ### 1. Copy the app to Applications
 
-Double-click the `.dmg`, then drag **squick-share** onto the **Applications** folder in the window that opens.
+Double-click the `.dmg`, then drag **SQuick Share** onto the **Applications** folder in the window that opens.
 
 ### 2. Allow it to open (first launch only)
 
-squick-share is free and ad-hoc signed rather than notarized by Apple, so macOS asks you to confirm it once. Pick one:
+SQuick Share is free and ad-hoc signed rather than notarized by Apple, so macOS asks you to confirm it once. Pick one:
 
-- **A. System Settings:** open squick-share and click **Done** on the warning. Go to **System Settings › Privacy & Security**, scroll down, click **Open Anyway** and confirm. Open the app again and click **Open**. (On macOS 13 and 14: right-click the app › **Open** › **Open**.)
+- **A. System Settings:** open SQuick Share and click **Done** on the warning. Go to **System Settings › Privacy & Security**, scroll down, click **Open Anyway** and confirm. Open the app again and click **Open**. (On macOS 13 and 14: right-click the app › **Open** › **Open**.)
 - **B. Terminal:** run one command:
   ```sh
-  xattr -dr com.apple.quarantine /Applications/squick-share.app && open /Applications/squick-share.app
+  xattr -dr com.apple.quarantine "/Applications/SQuick Share.app" && open "/Applications/SQuick Share.app"
   ```
 
-> **On first launch** the squick-share window opens and an antenna icon appears in the menu bar. When macOS asks to **find devices on your local network**, click **Allow**. This is required. Allow notifications too, for Accept/Decline alerts, and Bluetooth, so phones see your Mac sooner. Closing the window keeps squick-share running in the menu bar; the Dock icon only shows while a window is open (or if you turn the menu bar icon off in Settings).
+> **On first launch** the SQuick Share window opens and an antenna icon appears in the menu bar. When macOS asks to **find devices on your local network**, click **Allow**. This is required. Allow notifications too, for Accept/Decline alerts, and Bluetooth, so phones see your Mac sooner. Closing the window keeps SQuick Share running in the menu bar; the Dock icon only shows while a window is open (or if you turn the menu bar icon off in Settings).
 
 ## Screenshots
 
@@ -111,12 +111,12 @@ More screenshots and a full tour: **[documentation site](https://mukesh-devs.git
 3. Check the **4-digit PIN** matches, then click **Accept**. Files land in **Downloads** and are never opened automatically.
 
 **Mac → Phone**
-1. Open squick-share and choose **Send** in the sidebar (or menu bar icon › **Send Files…**), or right-click files in Finder › **Share › squick-share**.
+1. Open SQuick Share and choose **Send** in the sidebar (or menu bar icon › **Send Files…**), or right-click files in Finder › **Share › SQuick Share**.
 2. On the phone, open **Files › Quick Share › Receive** (or the **Quick Share** tile in Quick Settings) and keep it open. Android phones only show up while this screen is open.
 3. Drop the files on the phone when it appears (or click it to choose files), check the PIN, and accept on the phone.
 
 > 💡 On Xiaomi/Redmi phones, use **Quick Share** (Google's), not "Xiaomi Share". If the phone doesn't see your Mac, choose **Visibility › Announce Again** from the menu bar icon, and make sure both are on the same Wi-Fi (not a guest network).
-> To use the Finder/Safari share menu, enable **squick-share** in System Settings › General › Login Items & Extensions › **Sharing** (macOS 15+), or Privacy & Security › Extensions › Sharing (macOS 13–14).
+> To use the Finder/Safari share menu, enable **SQuick Share** in System Settings › General › Login Items & Extensions › **Sharing** (macOS 15+), or Privacy & Security › Extensions › Sharing (macOS 13–14).
 
 More help: [troubleshooting guide](docs/TESTING.md#if-the-mac-does-not-appear-on-the-phone).
 
@@ -134,12 +134,12 @@ More help: [troubleshooting guide](docs/TESTING.md#if-the-mac-does-not-appear-on
 
 ## How it works
 
-squick-share is a from-scratch Swift implementation of Google's Quick Share protocol over Wi-Fi.
+SQuick Share is a from-scratch Swift implementation of Google's Quick Share protocol over Wi-Fi.
 
 ```mermaid
 sequenceDiagram
     participant P as Android phone
-    participant M as Mac (squick-share)
+    participant M as Mac (SQuick Share)
     M-->>P: Bonjour / mDNS: "I'm here" (_FC9F5ED42C8A._tcp)
     P->>M: TCP connect + ConnectionRequest
     P->>M: UKEY2 key exchange (P-256 ECDH)
@@ -164,7 +164,7 @@ Every protocol constant is traced to Google's open-source code in [docs/PROTOCOL
 ## Privacy and security
 
 - 🔐 **End-to-end encrypted.** Keys are created fresh for every transfer. The PIN lets you confirm the other device.
-- 🏠 **Local only.** No servers, no accounts, no analytics. squick-share only talks to devices on your network.
+- 🏠 **Local only.** No servers, no accounts, no analytics. SQuick Share only talks to devices on your network.
 - 🧹 **Safe file handling.** Incoming file names are sanitized (no `../` tricks, hidden files or spoofed extensions), files are written only inside your chosen folder, and they are never opened automatically.
 - 🧱 **Sandboxed.** Runs in the macOS App Sandbox with the Hardened Runtime.
 
@@ -196,7 +196,7 @@ git clone <this repo> squick-share && cd squick-share
 ```
 
 `build-release.sh` builds `universal` by default. Use `--arch arm64`, `--arch x86_64` or `--all` for the others.
-Everything goes into `build/release/`: one folder per variant with `squick-share.app`, plus the `.zip` and `.dmg` files.
+Everything goes into `build/release/`: one folder per variant with `SQuick Share.app`, plus the `.zip` and `.dmg` files.
 
 | Signing | Command | Runs on |
 |---|---|---|
@@ -244,7 +244,7 @@ Debug builds understand `squickshare://debug-snapshot` and `squickshare://debug-
 
 ## Credits and license
 
-- squick-share is licensed under the [MIT License](LICENSE). The vendored Google protos and SwiftProtobuf stay under Apache-2.0; see [NOTICE](NOTICE).
+- SQuick Share is licensed under the [MIT License](LICENSE). The vendored Google protos and SwiftProtobuf stay under Apache-2.0; see [NOTICE](NOTICE).
 - Protocol definitions: Google's [nearby](https://github.com/google/nearby) and [ukey2](https://github.com/google/ukey2) repositories (Apache-2.0), vendored unmodified in `Packages/QuickShareCore/proto/`.
 
 <div align="center"><sub>Made for everyone with a Mac and an Android phone. ⭐ Star the repo if it saved you a cable.</sub></div>

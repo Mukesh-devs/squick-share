@@ -38,7 +38,7 @@ struct SquickShareApp: App {
                 Divider()
             }
             CommandGroup(before: .windowList) {
-                Button("squick-share") { appDelegate.model.showMainWindow() }
+                Button("SQuick Share") { appDelegate.model.showMainWindow() }
                     .keyboardShortcut("0")
                 Divider()
             }

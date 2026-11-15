@@ -4,7 +4,7 @@
 # Builds the Debug app and runs it in snapshot mode (SQUICKSHARE_SNAPSHOT=1): it fills the UI with
 # sample data, renders every screen in light and dark mode, and quits without touching the network.
 # The app's preferences are backed up, replaced with neutral sample values (so no real device names
-# appear), and restored exactly afterwards. A running copy of squick-share is not affected.
+# appear), and restored exactly afterwards. A running copy of SQuick Share is not affected.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,7 +20,7 @@ if [[ "${1:-}" == "--out" && -n "${2:-}" ]]; then OUT="$2"; fi
 xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Debug \
   -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData build 2>&1 \
   | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
-APP="build/DerivedData/Build/Products/Debug/squick-share.app"
+APP="build/DerivedData/Build/Products/Debug/SQuick Share.app"
 [[ -d "$APP" ]] || { echo "Debug build failed" >&2; exit 1; }
 
 # Back up preferences (if any) and restore them on exit, whatever happens.
@@ -54,7 +54,7 @@ defaults write "$PREFS" visibility everyone
 defaults delete "$PREFS" downloadFolderBookmark 2>/dev/null || true
 
 rm -rf "$CONTAINER/tmp/snapshots"
-SQUICKSHARE_SNAPSHOT=1 "$APP/Contents/MacOS/squick-share" 2>/dev/null || true
+SQUICKSHARE_SNAPSHOT=1 "$APP/Contents/MacOS/SQuick Share" 2>/dev/null || true
 [[ -d "$CONTAINER/tmp/snapshots" ]] || { echo "No snapshots were rendered" >&2; exit 1; }
 
 mkdir -p "$OUT"

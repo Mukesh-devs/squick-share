@@ -46,20 +46,20 @@ targets:
     info:
       path: SquickShare/Info.plist
       properties:
-        CFBundleDisplayName: squick-share
-        CFBundleName: squick-share
+        CFBundleDisplayName: SQuick Share
+        CFBundleName: SQuick Share
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSApplicationCategoryType: public.app-category.utilities
         LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         LSUIElement: true
         NSHumanReadableCopyright: ""
-        NSLocalNetworkUsageDescription: squick-share uses the local network to find nearby Android, Windows and Linux devices and to send and receive files with Quick Share.
-        NSBluetoothAlwaysUsageDescription: squick-share listens for nearby Android phones that open Quick Share, so it can announce this Mac to them right away. Nothing is sent over Bluetooth.
+        NSLocalNetworkUsageDescription: SQuick Share uses the local network to find nearby Android, Windows and Linux devices and to send and receive files with Quick Share.
+        NSBluetoothAlwaysUsageDescription: SQuick Share listens for nearby Android phones that open Quick Share, so it can announce this Mac to them right away. Nothing is sent over Bluetooth.
         NSBonjourServices:
           - _FC9F5ED42C8A._tcp
         CFBundleURLTypes:
-          - CFBundleURLName: squick-share send
+          - CFBundleURLName: SQuick Share send
             CFBundleURLSchemes: [squickshare]
         CFBundleDocumentTypes:
           - CFBundleTypeName: Any File
@@ -78,7 +78,7 @@ targets:
         com.apple.security.device.bluetooth: true
     settings:
       base:
-        PRODUCT_NAME: squick-share
+        PRODUCT_NAME: "SQuick Share"
         PRODUCT_MODULE_NAME: SquickShare
         PRODUCT_BUNDLE_IDENTIFIER: tech.mukesh.squick-share
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -94,8 +94,8 @@ targets:
     info:
       path: ShareExtension/Info.plist
       properties:
-        CFBundleDisplayName: squick-share
-        CFBundleName: squick-share
+        CFBundleDisplayName: SQuick Share
+        CFBundleName: SQuick Share
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"

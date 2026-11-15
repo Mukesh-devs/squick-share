@@ -344,7 +344,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "tech.mukesh.squick-share";
 				PRODUCT_MODULE_NAME = SquickShare;
-				PRODUCT_NAME = "squick-share";
+				PRODUCT_NAME = "SQuick Share";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -383,7 +383,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "tech.mukesh.squick-share";
 				PRODUCT_MODULE_NAME = SquickShare;
-				PRODUCT_NAME = "squick-share";
+				PRODUCT_NAME = "SQuick Share";
 				SDKROOT = macosx;
 			};
 			name = Release;

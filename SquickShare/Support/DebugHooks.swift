@@ -294,13 +294,13 @@ private struct MenuPreview: View {
                 MenuTransferView(id: transfer.id).frame(height: 62)
             }
             if !model.transfers.isEmpty { Divider().padding(.horizontal, 10).padding(.vertical, 4) }
-            row("Open squick-share", "macwindow")
+            row("Open SQuick Share", "macwindow")
             row("Send Files…", "square.and.arrow.up")
             row("Visibility", "eye", submenu: true)
             row("Recent Transfers", "clock.arrow.circlepath", submenu: true)
             Divider().padding(.horizontal, 10).padding(.vertical, 4)
             row("Settings…", "gearshape", shortcut: "⌘,")
-            row("Quit squick-share", "power", shortcut: "⌘Q")
+            row("Quit SQuick Share", "power", shortcut: "⌘Q")
         }
         .padding(.vertical, 6)
         .frame(width: StatusItemController.menuWidth)

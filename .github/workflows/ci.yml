@@ -56,7 +56,7 @@ jobs:
           xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Debug \
             -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData $SIGN build 2>&1 \
             | grep -E "error:|warning: .*(SquickShare|QuickShareCore)/|BUILD (SUCCEEDED|FAILED)" | sort -u | head -n 120
-          test -d build/DerivedData/Build/Products/Debug/squick-share.app
+          test -d "build/DerivedData/Build/Products/Debug/SQuick Share.app"
 
       - name: Build Release app (arm64)
         run: |
@@ -65,18 +65,18 @@ jobs:
             -destination 'generic/platform=macOS' -derivedDataPath build/DerivedDataRelease \
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO $SIGN build 2>&1 \
             | grep -E "error:|BUILD (SUCCEEDED|FAILED)" | sort -u | head -n 60
-          test -d build/DerivedDataRelease/Build/Products/Release/squick-share.app
-          codesign -d --entitlements - build/DerivedDataRelease/Build/Products/Release/squick-share.app 2>&1 | grep -E "bluetooth|sandbox|network" || true
-          plutil -extract NSBluetoothAlwaysUsageDescription raw build/DerivedDataRelease/Build/Products/Release/squick-share.app/Contents/Info.plist
+          test -d "build/DerivedDataRelease/Build/Products/Release/SQuick Share.app"
+          codesign -d --entitlements - "build/DerivedDataRelease/Build/Products/Release/SQuick Share.app" 2>&1 | grep -E "bluetooth|sandbox|network" || true
+          plutil -extract NSBluetoothAlwaysUsageDescription raw "build/DerivedDataRelease/Build/Products/Release/SQuick Share.app/Contents/Info.plist"
 
       - name: Run app checks
         run: |
           set +e
-          DEBUG_BIN=build/DerivedData/Build/Products/Debug/squick-share.app/Contents/MacOS/squick-share
-          RELEASE_BIN=build/DerivedDataRelease/Build/Products/Release/squick-share.app/Contents/MacOS/squick-share
+          DEBUG_BIN="build/DerivedData/Build/Products/Debug/SQuick Share.app/Contents/MacOS/SQuick Share"
+          RELEASE_BIN="build/DerivedDataRelease/Build/Products/Release/SQuick Share.app/Contents/MacOS/SQuick Share"
           CONTAINER="$HOME/Library/Containers/$BUNDLE_ID/Data"
           mkdir -p build/checks
-          rm -f ~/Library/Logs/DiagnosticReports/squick-share* 2>/dev/null || true
+          rm -f ~/Library/Logs/DiagnosticReports/SQuick\ Share* 2>/dev/null || true
           failed=0
 
           # Runs a command that must exit by itself within $1 seconds.
@@ -135,10 +135,10 @@ jobs:
           echo "::endgroup::"
 
           sleep 5
-          if ls ~/Library/Logs/DiagnosticReports/squick-share* >/dev/null 2>&1; then
+          if ls ~/Library/Logs/DiagnosticReports/SQuick\ Share* >/dev/null 2>&1; then
             echo "CRASH REPORTS FOUND:"
-            mkdir -p build/checks/crashes && cp ~/Library/Logs/DiagnosticReports/squick-share* build/checks/crashes/
-            head -n 120 ~/Library/Logs/DiagnosticReports/squick-share*
+            mkdir -p build/checks/crashes && cp ~/Library/Logs/DiagnosticReports/SQuick\ Share* build/checks/crashes/
+            head -n 120 ~/Library/Logs/DiagnosticReports/SQuick\ Share*
             failed=1
           else
             echo "No crash reports."
@@ -221,13 +221,13 @@ jobs:
           xcodebuild -project SquickShare.xcodeproj -scheme SquickShare -configuration Debug \
             -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData $SIGN build 2>&1 \
             | grep -E "error:|BUILD (SUCCEEDED|FAILED)" | sort -u | head -n 60
-          test -d build/DerivedData/Build/Products/Debug/squick-share.app
+          test -d "build/DerivedData/Build/Products/Debug/SQuick Share.app"
 
       - name: Render snapshots
         run: |
           CONTAINER="$HOME/Library/Containers/$BUNDLE_ID/Data"
           rm -rf "$CONTAINER/tmp/snapshots"
-          BIN=build/DerivedData/Build/Products/Debug/squick-share.app/Contents/MacOS/squick-share
+          BIN="build/DerivedData/Build/Products/Debug/SQuick Share.app/Contents/MacOS/SQuick Share"
           SQUICKSHARE_SNAPSHOT=1 "$BIN" > snapshot.log 2>&1 & pid=$!
           for _ in $(seq 90); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
           kill -9 "$pid" 2>/dev/null || true

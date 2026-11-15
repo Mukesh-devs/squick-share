@@ -620,7 +620,7 @@ struct StatusBanners: View {
         VStack(alignment: .leading, spacing: 10) {
             if model.localNetworkDenied {
                 Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
-                       text: "Local network access is off, so squick-share can't find or be found by nearby devices.") {
+                       text: "Local network access is off, so SQuick Share can't find or be found by nearby devices.") {
                     Button("Open System Settings") { model.openLocalNetworkSettings() }
                         .buttonStyle(PillButtonStyle(kind: .secondary))
                 }
@@ -629,7 +629,7 @@ struct StatusBanners: View {
                        text: "This Mac isn't connected to a network. Both devices must be on the same Wi-Fi network.") { EmptyView() }
             } else if case .failed(let message) = model.receiverStatus {
                 Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
-                       text: "This Mac can't be discovered right now (\(message)). squick-share keeps retrying.") { EmptyView() }
+                       text: "This Mac can't be discovered right now (\(message)). SQuick Share keeps retrying.") { EmptyView() }
             }
             if let item = model.receivedText {
                 Banner(symbol: item.webURL != nil ? "link" : "text.bubble", tint: .accentColor,
@@ -748,7 +748,7 @@ struct WelcomeSheet: View {
                 .interpolation(.high)
                 .frame(width: 88, height: 88)
                 .accessibilityHidden(true)
-            Text("Welcome to squick-share")
+            Text("Welcome to SQuick Share")
                 .font(.system(size: 24, weight: .bold))
                 .padding(.top, 8)
             Text("Quick Share for your Mac. Share with Android in a tap.")

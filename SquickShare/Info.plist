@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>squick-share</string>
+	<string>SQuick Share</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -29,7 +29,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>squick-share</string>
+	<string>SQuick Share</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -38,7 +38,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>squick-share send</string>
+			<string>SQuick Share send</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>squickshare</string>
@@ -54,7 +54,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>squick-share listens for nearby Android phones that open Quick Share, so it can announce this Mac to them right away. Nothing is sent over Bluetooth.</string>
+	<string>SQuick Share listens for nearby Android phones that open Quick Share, so it can announce this Mac to them right away. Nothing is sent over Bluetooth.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_FC9F5ED42C8A._tcp</string>
@@ -62,6 +62,6 @@
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>squick-share uses the local network to find nearby Android, Windows and Linux devices and to send and receive files with Quick Share.</string>
+	<string>SQuick Share uses the local network to find nearby Android, Windows and Linux devices and to send and receive files with Quick Share.</string>
 </dict>
 </plist>

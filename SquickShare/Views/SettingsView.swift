@@ -250,14 +250,14 @@ private struct SettingsItemRow: View {
     private var notificationsBlocked: Bool { settings.notificationsEnabled && !model.notificationsAllowed }
 
     private var notificationSubtitle: String {
-        notificationsBlocked ? "Turned off for squick-share in System Settings" : "Accept and Decline from the notification"
+        notificationsBlocked ? "Turned off for SQuick Share in System Settings" : "Accept and Decline from the notification"
     }
 
     static func bluetoothMessage(_ status: BeaconListenerStatus) -> String {
         switch status {
         case .listening: return "Listening · only listens, nothing is sent"
         case .bluetoothOff: return "Bluetooth is off. Phones still find this Mac over Wi-Fi."
-        case .notAllowed: return "squick-share isn't allowed to use Bluetooth"
+        case .notAllowed: return "SQuick Share isn't allowed to use Bluetooth"
         case .unsupported: return "This Mac has no Bluetooth LE"
         case .off: return "Starting…"
         }

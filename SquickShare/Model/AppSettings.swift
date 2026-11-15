@@ -155,7 +155,7 @@ final class AppSettings: ObservableObject {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             if enabled, SMAppService.mainApp.status == .requiresApproval {
-                return "Allow squick-share in System Settings → General → Login Items."
+                return "Allow SQuick Share in System Settings → General → Login Items."
             }
             return nil
         } catch {

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- The SQuick Share app icon, drawn from the same geometry as scripts/make-icon.swift. -->
+  <defs>
+    <linearGradient id="t" x1="0" y1="10" x2="0" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1ca0ff" />
+      <stop offset="1" stop-color="#0052e0" />
+    </linearGradient>
+    <radialGradient id="l" cx="50" cy="12" r="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity=".1" />
+      <stop offset="1" stop-color="#fff" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="10" x2="0" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity=".45" />
+      <stop offset="1" stop-color="#fff" stop-opacity="0" />
+    </linearGradient>
+    <filter id="ts" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="2" flood-color="#000" flood-opacity=".38" />
+    </filter>
+    <filter id="ms" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="1.6" stdDeviation="1.75" flood-color="#062078" flood-opacity=".5" />
+    </filter>
+  </defs>
+  <rect x="10" y="10" width="80" height="80" rx="18" fill="#0052e0" filter="url(#ts)" />
+  <rect x="10" y="10" width="80" height="80" rx="18" fill="url(#t)" />
+  <rect x="10" y="10" width="80" height="80" rx="18" fill="url(#l)" />
+  <rect x="10.3" y="10.3" width="79.4" height="79.4" rx="17.7" fill="none" stroke="url(#rim)" stroke-width=".6" />
+  <g filter="url(#ms)" fill="none" stroke="#f8fbff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M67.06 31.05A25.5 25.5 0 0 0 24.5 50H42.82M57.18 50H75.5A25.5 25.5 0 0 1 32.94 68.95" stroke-width="6.6" />
+    <path d="M45 50 39.02 44.99M45 50 39.02 55.01M55 50 60.98 44.99M55 50 60.98 55.01" stroke-width="3.63" />
+    <g fill="#f8fbff" stroke="none">
+      <circle cx="67.06" cy="31.05" r="5.41" />
+      <circle cx="32.94" cy="68.95" r="5.41" />
+    </g>
+  </g>
+</svg>

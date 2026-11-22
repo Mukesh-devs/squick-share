@@ -1,0 +1,82 @@
+# The product site in website/: checks it on every push and pull request that touches it,
+# and publishes it to GitHub Pages (https://mukesh-devs.github.io/squick-share/) from main.
+# The site is static files, so there is no build: the folder is uploaded as it is. The version
+# and the downloads on the page come from the GitHub Releases API in the visitor's browser, so
+# publishing a release needs no new deployment.
+#
+# One-time setup: Settings › Pages › Build and deployment › Source: "GitHub Actions".
+name: Website
+
+on:
+  push:
+    paths:
+      - "website/**"
+      - "scripts/website*"
+      - ".github/workflows/website.yml"
+  pull_request:
+    paths:
+      - "website/**"
+      - "scripts/website*"
+      - ".github/workflows/website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Release logic and page files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/website.test.mjs
+
+  browser:
+    name: Browser checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - run: node scripts/website.browser.mjs --shots website-screenshots
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-screenshots
+          path: website-screenshots
+          if-no-files-found: ignore
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [check, browser]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # One deployment at a time; a newer one waits for the one in progress.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+      - id: deployment
+        uses: actions/deploy-pages@v4

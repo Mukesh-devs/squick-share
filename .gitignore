@@ -10,3 +10,7 @@ build/
 *.md
 *.txt
 !README.md
+!website/robots.txt
+
+# Playwright for the website checks (npm install --no-save)
+node_modules/

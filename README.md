@@ -209,7 +209,7 @@ Bundle ID: `tech.mukesh.squick-share` (set in `project.yml`).
 ### Releases and documentation (GitHub Actions + Pages)
 
 - **Releases:** bump `MARKETING_VERSION` in `project.yml`, run `xcodegen generate`, commit, then `git tag v1.1.0 && git push origin v1.1.0`. The [release workflow](.github/workflows/release.yml) runs the tests and attaches `squick-share-<version>-{universal,arm64,x86_64}.{dmg,zip}` to a GitHub Release, with a link to the documentation site.
-- **Documentation site:** [`docs/index.html`](docs/index.html), served by GitHub Pages (Settings › Pages › Deploy from a branch › `main`, folder `/docs`).
+- **Website:** [`website/`](website/README.md), plain HTML, CSS and JavaScript with no build step. The [website workflow](.github/workflows/website.yml) checks it and publishes it to GitHub Pages from `main` (Settings › Pages › Source: **GitHub Actions**). Its version and download buttons come from the latest release, so a release needs no new deployment.
 - **Screenshots:** `./scripts/make-screenshots.sh` re-renders every image in `docs/images/` from the real UI with neutral sample data.
 
 ### Project layout
@@ -223,9 +223,10 @@ Packages/QuickShareCore/      protocol, crypto, networking; no UI (Swift 6 langu
   Sources/QuickShareCore/     Crypto/, Transport/, Discovery/, Transfer/, Protos/ (generated)
   Sources/SquickShareCLI/     squick-share-cli: receive / send / browse from Terminal
   Tests/QuickShareCoreTests/  unit, loopback, fuzz and mDNS integration tests
-docs/                         documentation site (index.html, images/), PROTOCOL_NOTES, COMPATIBILITY, TESTING
+docs/                         images/ (the screenshots), PROTOCOL_NOTES, COMPATIBILITY, TESTING, the old documentation page
+website/                      the product website (GitHub Pages); see website/README.md
 scripts/                      build-release, make-dmg, make-screenshots, generate-protos, gen-test-vectors.py, make-icon
-.github/workflows/            release.yml (builds the DMGs and zips)
+.github/workflows/            release.yml (builds the DMGs and zips), ci.yml, website.yml (checks and publishes the website)
 ```
 
 The public API of `QuickShareCore` is small (`QuickShareReceiver`, `QuickShareSender`, `NearbyBrowser`, `QRCodeSession`, plus value types), so it could be replaced with another core later.

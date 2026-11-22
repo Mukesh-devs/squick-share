@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mukesh-devs.github.io/squick-share/sitemap.xml

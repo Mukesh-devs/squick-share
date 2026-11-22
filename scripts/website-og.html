@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- The share image (website/assets/og.png), 1200 × 630. Render it with:
+     node scripts/website-og.mjs   (needs Playwright; see website/README.md) -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: "Geist";
+        src: url("../website/assets/fonts/geist-latin.woff2") format("woff2-variations");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "JetBrains Mono";
+        src: url("../website/assets/fonts/jetbrains-mono-latin.woff2") format("woff2-variations");
+        font-weight: 100 800;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        position: relative;
+        background: #f6f7f9;
+        color: #0b1020;
+        font-family: "Geist", sans-serif;
+      }
+      .rings {
+        position: absolute;
+        inset: 0;
+        background:
+          repeating-radial-gradient(
+            circle at 1010px 150px,
+            transparent 0,
+            transparent 75.5px,
+            rgb(0 102 214 / 0.16) 76.75px,
+            transparent 78px
+          ),
+          radial-gradient(circle at 1010px 150px, rgb(0 102 214 / 0.1), transparent 360px);
+        -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 95%);
+      }
+      .copy {
+        position: absolute;
+        left: 72px;
+        top: 64px;
+        width: 620px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-weight: 700;
+        font-size: 30px;
+        letter-spacing: -0.03em;
+      }
+      .brand img {
+        width: 72px;
+        height: 72px;
+        margin: -8px;
+      }
+      h1 {
+        margin: 46px 0 0;
+        font-weight: 650;
+        font-size: 92px;
+        line-height: 0.98;
+        letter-spacing: -0.055em;
+      }
+      .sel {
+        position: relative;
+        display: inline-block;
+        padding: 0 0.2em 0.09em 0.12em;
+        border-radius: 0.16em;
+        background: rgb(0 102 214 / 0.08);
+        color: #0066d6;
+        white-space: nowrap;
+      }
+      .sel::after {
+        content: "";
+        position: absolute;
+        left: 0.12em;
+        right: 0.2em;
+        bottom: 0.035em;
+        height: 5px;
+        border-radius: 99px;
+        background: #0066d6;
+      }
+      .sel i {
+        position: absolute;
+        right: -0.1em;
+        bottom: -0.1em;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border: 3px solid #f6f7f9;
+        border-radius: 50%;
+        background: #0066d6;
+      }
+      .sel i svg {
+        width: 15px;
+        height: 15px;
+      }
+      p {
+        margin: 30px 0 0;
+        color: #5b6475;
+        font-size: 25px;
+        line-height: 1.45;
+        letter-spacing: -0.01em;
+      }
+      .chips {
+        display: flex;
+        gap: 10px;
+        margin-top: 32px;
+      }
+      .chips span {
+        padding: 8px 14px;
+        border: 1px solid #dde1e8;
+        border-radius: 999px;
+        background: #fff;
+        color: #273044;
+        font: 600 15px/1 "JetBrains Mono", monospace;
+      }
+      .mac {
+        position: absolute;
+        left: 942px;
+        top: 82px;
+        width: 136px;
+        filter: drop-shadow(0 18px 24px rgb(15 25 60 / 0.25));
+      }
+      .tag {
+        position: absolute;
+        left: 1010px;
+        top: 70px;
+        translate: -50% -50%;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 11px 5px 9px;
+        border: 1px solid #dde1e8;
+        border-radius: 999px;
+        background: #fff;
+        color: #273044;
+        font: 600 12px/1.2 "JetBrains Mono", monospace;
+        white-space: nowrap;
+      }
+      .tag b {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+      }
+      .shot {
+        position: absolute;
+        left: 740px;
+        top: 300px;
+        width: 620px;
+        border: 1px solid #dde1e8;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow:
+          0 30px 70px -28px rgb(15 25 60 / 0.45),
+          0 10px 24px -16px rgb(15 25 60 / 0.25);
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="rings"></div>
+    <div class="tag"><b></b>MacBook Pro · Visible</div>
+    <img class="mac" src="../website/assets/icon.svg" alt="" />
+    <div class="shot"><img src="../website/assets/shots/hero-light-1280.webp" alt="" /></div>
+    <div class="copy">
+      <div class="brand"><img src="../website/assets/icon.svg" alt="" />SQuick Share</div>
+      <h1>
+        Quick Share for
+        <span class="sel"
+          >your&nbsp;Mac.<i
+            ><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6 9 17l-5-5" /></svg></i
+        ></span>
+      </h1>
+      <p>Send and receive with Android phones over your own Wi-Fi. No cable, no cloud, no account.</p>
+      <div class="chips"><span>Free</span><span>Open source</span><span>Encrypted</span><span>macOS 13+</span></div>
+    </div>
+  </body>
+</html>

@@ -171,6 +171,12 @@ test("the page has no version or download link written into it", () => {
   }
 });
 
+test("the page states no transfer speeds", () => {
+  // Speed depends on each Wi-Fi network, so the page doesn't promise one.
+  const html = read("index.html").replace(/<svg[\s\S]*?<\/svg>/g, "");
+  assert.doesNotMatch(html, /\d\s*(MB\/s|Mbps|Mbit|GB\/s)/i);
+});
+
 test("every local file the page names exists", () => {
   const html = read("index.html");
   const refs = new Set();

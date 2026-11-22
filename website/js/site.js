@@ -4,7 +4,6 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const finePointer = () => matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 /** Runs `fn` at most once a frame. */
 function perFrame(fn) {
@@ -73,7 +72,7 @@ function nav() {
   let shown = "top";
   const mark = (id) => {
     for (const [a, target] of links) {
-      const on = target === id || (target === "install" && id === "download");
+      const on = target === id;
       a.classList.toggle("is-on", on);
       if (a.closest("[data-rail]")) a.toggleAttribute("aria-current", on);
     }
@@ -110,80 +109,11 @@ function nav() {
     }).observe(hero);
 }
 
-/* ------------------------------- the hero: the Mac and the phones nearby */
-/**
- * The rings are centred on the app's icon. With a mouse, the pointer is a
- * phone nearby: it snaps to the nearest ring, which lights up, and a beam
- * of data runs from it to the Mac.
- */
-function field() {
-  const box = $("[data-field]");
-  if (!box) return;
-  const center = $("[data-field-center]", box);
-  const ring = $("[data-field-ring]", box);
-  const beam = $("[data-field-beam]", box);
-  const device = $("[data-field-device]", box);
-  const tag = $("[data-field-tag]", box);
-  let cx = 0;
-  let cy = 0;
-  let step = 78;
-
-  const place = () => {
-    step = parseFloat(getComputedStyle(box).getPropertyValue("--step")) || 78;
-    const b = box.getBoundingClientRect();
-    const c = center?.offsetParent ? center.getBoundingClientRect() : null;
-    if (c && c.width) {
-      // The icon floats; take its resting centre.
-      cx = c.left + c.width / 2 - b.left;
-      cy = c.top + c.height / 2 - b.top;
-      box.style.setProperty("--cx", `${cx.toFixed(1)}px`);
-      box.style.setProperty("--cy", `${cy.toFixed(1)}px`);
-    } else {
-      box.style.removeProperty("--cx");
-      box.style.removeProperty("--cy");
-      const s = getComputedStyle(box);
-      const read = (v, total) => (v.endsWith("%") ? (parseFloat(v) / 100) * total : parseFloat(v));
-      cx = read(s.getPropertyValue("--cx").trim(), b.width);
-      cy = read(s.getPropertyValue("--cy").trim(), b.height);
-    }
-  };
-  place();
-  new ResizeObserver(perFrame(place)).observe(box);
-  document.fonts?.ready.then(place);
-
-  if (!finePointer() || !ring || !device) return;
-  let last = "";
-  box.addEventListener("pointermove", (e) => {
-    const b = box.getBoundingClientRect();
-    const x = e.clientX - b.left - cx;
-    const y = e.clientY - b.top - cy;
-    const d = Math.hypot(x, y) || 1;
-    const k = Math.max(1, Math.round(d / step));
-    const r = k * step;
-    const angle = Math.atan2(y, x);
-    const dx = cx + Math.cos(angle) * r;
-    const dy = cy + Math.sin(angle) * r;
-    box.classList.add("is-live");
-    box.classList.toggle("is-near", k === 1);
-    box.style.setProperty("--ring-r", `${r}px`);
-    beam.style.setProperty("--beam", `${r}px`);
-    // The beam points from the Mac to the phone; its dashes run inward.
-    beam.style.setProperty("--angle", `${angle}rad`);
-    device.style.setProperty("--dx", `${dx.toFixed(1)}px`);
-    device.style.setProperty("--dy", `${dy.toFixed(1)}px`);
-    const text = k === 1 ? "Sharing…" : k <= 3 ? "Nearby" : "Your phone";
-    if (text !== last) tag.textContent = last = text;
-  });
-  box.addEventListener("pointerleave", () => {
-    box.classList.remove("is-live", "is-near");
-  });
-}
-
 /* ------------------------------------------------------------ reveals */
 /**
  * Three kinds, all run once as they come into view:
  * `.reveal` rises into focus; `.sweep` (headings) is filled in behind a
- * transfer capsule that runs across; `[data-fill]` shows its rows one after
+ * transfer capsule that runs across; `[data-fill]` shows its items one after
  * another, like files arriving.
  */
 function reveals() {
@@ -224,25 +154,120 @@ function reveals() {
     },
     { rootMargin: "0px 0px -10% 0px", threshold: 0.05 },
   );
-  for (const el of items) io.observe(el);
+  // The hero is the first screen: it plays as the page opens.
+  const first = new Set($$(".hero .reveal"));
+  requestAnimationFrame(() => requestAnimationFrame(() => first.forEach(show)));
+  for (const el of items) if (!first.has(el)) io.observe(el);
 }
 
-/* ------------------------------------------- the showcase, tilted back */
-function tilt() {
-  const fig = $("[data-tilt]");
-  const win = fig && $(".window", fig);
-  if (!win || reduced()) return;
-  const update = () => {
-    const r = fig.getBoundingClientRect();
-    const vh = innerHeight;
-    // Flat once its top reaches a fifth of the window; tilted below that.
-    const p = Math.min(1, Math.max(0, (vh - r.top) / (vh * 0.8)));
-    win.style.setProperty("--tilt", `${(1 - p) * 18}deg`);
-    win.style.setProperty("--zoom", String(0.94 + p * 0.06));
+/* ------------------------------------------------ the step-by-step guide */
+/**
+ * Two choices pick one of four guides (Android or Windows, to or from the
+ * Mac); each guide shows one step at a time, with arrows, dots, the arrow
+ * keys and a swipe to move. Without scripts every step is listed.
+ */
+function tour() {
+  const root = $("[data-tour]");
+  if (!root) return;
+  const flows = $$("[data-flow]", root);
+  const platformTabs = $$("[data-tour-platform] [role=tab]", root);
+  const directionTabs = $$("[data-tour-direction] [role=tab]", root);
+  const dots = $("[data-tour-dots]", root);
+  const prev = $("[data-tour-prev]", root);
+  const next = $("[data-tour-next]", root);
+  const status = $("[data-tour-status]", root);
+  const state = { platform: "android", direction: "to", index: 0 };
+  let flow = null;
+  let slides = [];
+
+  const select = (tabs, value) => {
+    for (const t of tabs) {
+      const on = t.dataset.value === value;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+    }
   };
-  update();
-  addEventListener("scroll", perFrame(update), { passive: true });
-  addEventListener("resize", perFrame(update));
+  const show = (i, dir = 0) => {
+    state.index = Math.max(0, Math.min(slides.length - 1, i));
+    flow.style.setProperty("--dir", String(dir < 0 ? -1 : 1));
+    for (const [k, s] of slides.entries()) s.classList.toggle("is-on", k === state.index);
+    for (const [k, d] of [...dots.children].entries())
+      if (k === state.index) d.setAttribute("aria-current", "step");
+      else d.removeAttribute("aria-current");
+    prev.disabled = state.index === 0;
+    next.disabled = state.index === slides.length - 1;
+    if (status) status.textContent = `Step ${state.index + 1} of ${slides.length}`;
+  };
+  const open = () => {
+    flow = flows.find((f) => f.dataset.flow === `${state.platform}-${state.direction}`);
+    for (const f of flows) f.hidden = f !== flow;
+    slides = $$("[data-step]", flow);
+    dots.replaceChildren(
+      ...slides.map((_, k) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-label", `Step ${k + 1}`);
+        b.addEventListener("click", () => show(k, k - state.index));
+        return b;
+      }),
+    );
+    show(0);
+  };
+
+  // Tabs: click, or the arrow keys between them.
+  const wire = (tabs, key) => {
+    for (const t of tabs) {
+      t.addEventListener("click", () => {
+        if (state[key] === t.dataset.value) return;
+        state[key] = t.dataset.value;
+        select(tabs, state[key]);
+        open();
+      });
+      t.addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault();
+        const i = tabs.indexOf(t) + (e.key === "ArrowRight" ? 1 : -1);
+        const to = tabs[(i + tabs.length) % tabs.length];
+        to.focus();
+        to.click();
+      });
+    }
+    select(tabs, state[key]);
+  };
+  wire(platformTabs, "platform");
+  wire(directionTabs, "direction");
+
+  prev.addEventListener("click", () => show(state.index - 1, -1));
+  next.addEventListener("click", () => show(state.index + 1, 1));
+  // The arrow keys move between steps when the guide has focus (not in the tabs).
+  root.addEventListener("keydown", (e) => {
+    if (e.target.closest("[role=tablist]")) return;
+    if (e.key === "ArrowRight") show(state.index + 1, 1);
+    else if (e.key === "ArrowLeft") show(state.index - 1, -1);
+  });
+  // A swipe across a step moves too.
+  let x0 = null;
+  const area = $(".flows", root);
+  area.addEventListener("pointerdown", (e) => (x0 = e.pointerType === "mouse" ? null : e.clientX));
+  area.addEventListener("pointerup", (e) => {
+    if (x0 === null) return;
+    const dx = e.clientX - x0;
+    x0 = null;
+    if (Math.abs(dx) > 50) show(state.index + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
+  });
+
+  // Load every step's pictures once the guide is near, so steps switch instantly.
+  const io = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      for (const img of $$("img[loading=lazy]", root)) img.loading = "eager";
+    },
+    { rootMargin: "400px 0px" },
+  );
+  io.observe(root);
+
+  open();
 }
 
 /* ------------------------------- how far down the page, in the header */
@@ -258,83 +283,6 @@ function progress() {
   addEventListener("resize", perFrame(update));
 }
 
-/* ----------------------------------------------------------- counters */
-function counters() {
-  const items = $$("[data-count]");
-  if (reduced()) return;
-  const run = (el) => {
-    const to = Number(el.dataset.count);
-    const dec = Number(el.dataset.decimals ?? 0);
-    const t0 = performance.now();
-    const step = (t) => {
-      const k = Math.min(1, (t - t0) / 1100);
-      const eased = 1 - (1 - k) ** 3;
-      el.textContent = (to * eased).toFixed(dec);
-      if (k < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  };
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        run(e.target);
-        io.unobserve(e.target);
-      }
-    },
-    { threshold: 0.6 },
-  );
-  for (const el of items) io.observe(el);
-}
-
-/* ------------------------------ the speed tiles and their transfer row */
-function cells() {
-  const row = $("[data-fx]");
-  const ref = $("[data-fx-ref]");
-  const text = $("[data-fx-text]");
-  const all = $$("[data-cells] .cell");
-  if (!row || !all.length) return;
-  const pick = (c) => {
-    for (const x of all) x.classList.toggle("is-on", x === c);
-    if (ref.textContent === c.dataset.ref && text.textContent === c.dataset.fx) return;
-    ref.textContent = c.dataset.ref;
-    text.textContent = c.dataset.fx;
-    row.classList.toggle("is-out", c.dataset.dir === "out");
-    // Each one runs its transfer again.
-    row.classList.remove("is-run");
-    void row.offsetWidth;
-    row.classList.add("is-run");
-  };
-  // The visitor takes over by moving the pointer or the focus; the page
-  // scrolling under a resting pointer doesn't count.
-  let touched = false;
-  for (const c of all) {
-    c.tabIndex = 0;
-    c.addEventListener("pointermove", (e) => {
-      if (!e.movementX && !e.movementY) return;
-      touched = true;
-      pick(c);
-    });
-    c.addEventListener("focus", () => {
-      touched = true;
-      pick(c);
-    });
-  }
-  pick(all[0]);
-  if (reduced()) return;
-  const io = new IntersectionObserver(
-    (entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
-      io.disconnect();
-      // Like a queue of transfers going through, one after another, then back to the first.
-      const steps = [...all.slice(1), all[0]];
-      steps.forEach((c, i) => setTimeout(() => !touched && pick(c), 500 + i * 260));
-    },
-    { threshold: 0.5 },
-  );
-  io.observe(row.closest(".wrap") ?? all[0]);
-}
-
 /* ------------------------------------------------------- the ticker */
 function ticker() {
   const track = $("[data-ticker]");
@@ -345,37 +293,6 @@ function ticker() {
     copy.setAttribute("aria-hidden", "true");
     track.append(copy);
   }
-}
-
-/* ------------------------------------------------ terminal, typed out */
-function terminal() {
-  const term = $("[data-term]");
-  if (!term || reduced()) return;
-  const lines = $$("[data-type]", term);
-  const texts = lines.map((l) => l.textContent);
-  // Keep the box its final size while it types.
-  term.style.minHeight = `${term.offsetHeight}px`;
-  for (const l of lines) l.textContent = "";
-  const type = async () => {
-    for (const [i, l] of lines.entries()) {
-      l.classList.add("is-typing");
-      for (const ch of texts[i]) {
-        l.textContent += ch;
-        await new Promise((r) => setTimeout(r, 18 + Math.random() * 30));
-      }
-      l.classList.remove("is-typing");
-      await new Promise((r) => setTimeout(r, 260));
-    }
-  };
-  const io = new IntersectionObserver(
-    (entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
-      io.disconnect();
-      void type();
-    },
-    { threshold: 0.4 },
-  );
-  io.observe(term);
 }
 
 /* ---------------------------------------------------------- lightbox */
@@ -441,14 +358,10 @@ function fitMark() {
 export function initSite() {
   theme();
   nav();
-  field();
   reveals();
-  tilt();
+  tour();
   progress();
-  counters();
-  cells();
   ticker();
-  terminal();
   lightbox();
   copyButtons();
   fitMark();

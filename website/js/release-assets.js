@@ -137,8 +137,6 @@ export function summarize(release) {
     publishedAt: release.published_at ?? null,
     downloads,
     hasDownloads: BUILD_ORDER.some((a) => downloads[a].length > 0),
-    notesHtml: typeof release.body_html === "string" ? release.body_html : "",
-    notesText: typeof release.body === "string" ? release.body : "",
   };
 }
 

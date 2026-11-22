@@ -3,9 +3,10 @@
 //   node scripts/website.browser.mjs [--shots DIR]
 // Serves website/ under /squick-share/ (as GitHub Pages does) and checks the page at
 // phone, tablet, laptop and desktop widths in both themes, the theme toggle, the
-// lightbox, the menu, the downloads for each kind of visitor, what happens when the
-// GitHub API fails, and the page without JavaScript. The GitHub API is never called:
-// every answer is made up here. With --shots, saves full-page screenshots.
+// lightbox, the menu, the step-by-step guide, the download card for each kind of
+// visitor, what happens when the GitHub API fails, and the page without JavaScript.
+// The GitHub API is never called: every answer is made up here. With --shots, saves
+// full-page screenshots.
 import assert from "node:assert/strict";
 import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { createServer } from "node:http";
@@ -57,8 +58,6 @@ const RELEASE = {
   name: "SQuick Share v9.8.7",
   html_url: "https://github.com/Mukesh-devs/squick-share/releases/tag/v9.8.7",
   published_at: "2026-11-15T17:00:21Z",
-  body_html:
-    '<h2>Download</h2><p>Pick a <strong>disk image</strong>.</p><script>window.hacked=1</script><img src=x onerror="window.hacked=1"><a href="javascript:window.hacked=1">bad</a><table><tr><td>File</td></tr></table>',
   assets: ["universal", "arm64", "x86_64"].flatMap((a) => [
     asset(`squick-share-9.8.7-${a}.dmg`, 4_000_000),
     asset(`squick-share-9.8.7-${a}.zip`, 3_500_000),
@@ -118,7 +117,11 @@ async function open({ width = 1440, theme = "light", api = "ok", ua = "mac", arc
   page.on("console", (m) => m.type() === "error" && !/api\.github\.com|Failed to load resource/.test(m.text()) && errors.push(m.text()));
   await page.route("https://api.github.com/**", answers[api]);
   await page.goto(BASE, { waitUntil: "networkidle" });
-  if (js) await page.waitForFunction(() => !document.querySelector(".rec__loading"));
+  // The release has been looked up (or not) once the line under the heading changes.
+  if (js)
+    await page.waitForFunction(
+      () => !/^Free for macOS/.test(document.querySelector("[data-release-meta]").textContent.trim()),
+    );
   return { page, context, errors };
 }
 
@@ -149,8 +152,6 @@ async function contrastProblems(page) {
         const s = getComputedStyle(n);
         const c = parse(s.backgroundColor);
         if (c && c.a > 0) layers.push(c);
-        // The always-dark speed section paints a gradient over its own colour.
-        if (n.classList?.contains("speed")) layers.push({ r: 8, g: 11, b: 20, a: 1 });
         if (c && c.a === 1) break;
       }
       let color = parse(getComputedStyle(document.body).backgroundColor);
@@ -199,10 +200,11 @@ for (const width of [390, 820, 1440, 1920]) {
       assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), theme);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       assert.ok(overflow <= 0, `the page is ${overflow}px wider than the window`);
-      // Nothing sticks out of the page sideways (the ticker and the wordmark clip on purpose).
+      // Nothing sticks out of the page sideways (the ticker, the wordmark, the hero's
+      // rings and the devices in the guide's cards are clipped on purpose).
       const wide = await page.evaluate(() =>
         [...document.querySelectorAll("main *, .nav *, .footer *")]
-          .filter((el) => !el.closest(".ticker, .footer__mark, .sprite, .callouts, .term__body, .field") && el.getClientRects().length)
+          .filter((el) => !el.closest(".ticker, .footer__mark, .sprite, .field, .slide__art") && el.getClientRects().length)
           .filter((el) => {
             const r = el.getBoundingClientRect();
             return r.right > innerWidth + 1 || r.left < -1;
@@ -246,17 +248,17 @@ await check("the theme toggle switches and is remembered", async () => {
   await page.reload({ waitUntil: "networkidle" });
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
   assert.equal(await toggle.getAttribute("aria-label"), "Switch to light theme");
-  assert.ok(await page.locator(".showcase img.only-dark").isVisible());
-  assert.ok(!(await page.locator(".showcase img.only-light").isVisible()));
+  assert.ok(await page.locator(".stage img.only-dark").isVisible());
+  assert.ok(!(await page.locator(".stage img.only-light").isVisible()));
   await context.close();
 });
 
 await check("a screenshot opens full size, and closes with Escape", async () => {
   const { page, context } = await open();
-  await page.locator(".showcase [data-zoom]").click();
+  await page.locator(".stage [data-zoom]").click();
   const dialog = page.locator("[data-lightbox]");
   assert.ok(await dialog.evaluate((d) => d.open));
-  assert.match(await page.locator("[data-lightbox-img]").getAttribute("src"), /hero-light-2200\.webp$/);
+  assert.match(await page.locator("[data-lightbox-img]").getAttribute("src"), /receive-light-2200\.webp$/);
   await page.keyboard.press("Escape");
   assert.ok(!(await dialog.evaluate((d) => d.open)));
   await context.close();
@@ -270,12 +272,12 @@ await check("the phone menu opens, moves focus, and closes with Escape", async (
   await toggle.click();
   assert.ok(await menu.isVisible());
   assert.equal(await toggle.getAttribute("aria-expanded"), "true");
-  assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), "Features");
+  assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), "How it works");
   await page.keyboard.press("Escape");
   assert.ok(!(await menu.isVisible()));
   assert.equal(await toggle.getAttribute("aria-expanded"), "false");
   await toggle.click();
-  await menu.getByText("Install").click();
+  await menu.getByText("Download").click();
   assert.ok(!(await menu.isVisible()), "following a link closes the menu");
   await context.close();
 });
@@ -300,51 +302,86 @@ await check("the keyboard reaches the skip link first, with a visible focus ring
 /* ----------------------------------------------- downloads, per visitor */
 const primaryHrefs = (page) => page.$$eval("[data-download-primary]", (a) => a.map((x) => x.href));
 
+/** The three builds in the download card, in order, with what each offers. */
+const options = (page) =>
+  page.$$eval("[data-build]", (opts) =>
+    opts.map((o) => ({
+      build: o.dataset.build,
+      href: o.querySelector("[data-dl-link]").href,
+      picked: o.classList.contains("is-yours"),
+      primary: o.querySelector("[data-dl-link]").classList.contains("btn--primary"),
+      badge: o.querySelector("[data-dl-badge]").hidden ? null : o.querySelector("[data-dl-badge]").textContent,
+      size: o.querySelector("[data-dl-size]").textContent,
+    })),
+  );
+
+await check("one download card offers Apple silicon, Intel and Universal, in that order", async () => {
+  const { page, context } = await open({ arch: "arm" });
+  const opts = await options(page);
+  assert.deepEqual(
+    opts.map((o) => o.build),
+    ["arm64", "x86_64", "universal"],
+  );
+  assert.deepEqual(
+    opts.map((o) => o.href),
+    ["arm64", "x86_64", "universal"].map((a) => dl(`squick-share-9.8.7-${a}.dmg`)),
+  );
+  assert.ok(opts.every((o) => o.size === "4.0 MB"));
+  assert.equal(await page.locator(".dl").count(), 1);
+  await context.close();
+});
+
 await check("an Apple silicon Mac is offered the Apple silicon disk image", async () => {
   const { page, context } = await open({ arch: "arm" });
   for (const href of await primaryHrefs(page)) assert.equal(href, dl("squick-share-9.8.7-arm64.dmg"));
   assert.equal(await page.locator("[data-release-version]").first().textContent(), "v9.8.7");
-  assert.match(await page.locator(".rec__title").textContent(), /Apple silicon/);
-  assert.ok(await page.locator('[data-build="arm64"] [data-build-badge]').isVisible());
+  const opts = await options(page);
+  assert.deepEqual(
+    opts.filter((o) => o.picked).map((o) => [o.build, o.badge, o.primary]),
+    [["arm64", "This Mac", true]],
+  );
   assert.match(await page.locator("[data-download-note]").textContent(), /Apple silicon · \.dmg · 4\.0 MB/);
+  assert.ok(!(await page.locator("[data-dl-note]").isVisible()), "no note for a Mac");
   await context.close();
 });
 
 await check("an Intel Mac gets the Intel build; a Mac that doesn't say gets the universal one", async () => {
   let { page, context } = await open({ arch: "x86" });
   assert.equal((await primaryHrefs(page))[0], dl("squick-share-9.8.7-x86_64.dmg"));
+  assert.deepEqual(
+    (await options(page)).filter((o) => o.picked).map((o) => [o.build, o.badge]),
+    [["x86_64", "This Mac"]],
+  );
   await context.close();
   ({ page, context } = await open({ arch: null }));
   for (const href of await primaryHrefs(page)) assert.equal(href, dl("squick-share-9.8.7-universal.dmg"));
-  assert.equal(await page.locator("[data-build-badge]:visible").count(), 0, "no 'This Mac' when it isn't known");
-  assert.ok(await page.locator('[data-build="universal"].is-yours').count());
+  assert.deepEqual(
+    (await options(page)).filter((o) => o.picked).map((o) => [o.build, o.badge]),
+    [["universal", "Recommended"]],
+    "no 'This Mac' when the chip isn't known",
+  );
   await context.close();
 });
 
-await check("an Android phone is told it needs nothing, and every file is listed", async () => {
+await check("an Android phone is told it needs nothing, and every build is offered", async () => {
   const { page, context } = await open({ width: 390, ua: "android" });
-  assert.match(await page.locator(".rec__title").textContent(), /already has Quick Share/);
+  assert.match(await page.locator("[data-dl-note]").textContent(), /Nothing to install/);
   for (const href of await primaryHrefs(page)) assert.match(href, /#download$/);
-  assert.equal(await page.locator("[data-build] .btn--primary").count(), 3);
+  assert.ok((await options(page)).every((o) => o.href.startsWith(dl(""))));
   await context.close();
 });
 
-await check("a Windows computer is told SQuick Share is a Mac app", async () => {
+await check("a Windows computer is told SQuick Share goes on the Mac", async () => {
   const { page, context } = await open({ ua: "windows" });
-  assert.match(await page.locator(".rec__title").textContent(), /is a Mac app/);
+  assert.match(await page.locator("[data-dl-note]").textContent(), /goes on your Mac/);
   await context.close();
 });
 
-await check("release notes are shown, with anything unsafe removed", async () => {
+await check("'What's new' leads to the release on GitHub", async () => {
   const { page, context } = await open();
-  const notes = page.locator("[data-release-notes]");
-  assert.ok(await notes.isVisible());
-  await notes.locator("summary").click();
-  const html = await page.locator("[data-release-body]").innerHTML();
-  assert.match(html, /<h4>Download<\/h4>/);
-  assert.match(html, /<strong>disk image<\/strong>/);
-  assert.doesNotMatch(html, /script|onerror|<img|javascript:/i);
-  assert.equal(await page.evaluate(() => window.hacked), undefined);
+  const link = page.locator("[data-release-link]");
+  assert.equal(await link.textContent(), "What's new in 9.8.7");
+  assert.equal(await link.getAttribute("href"), RELEASE.html_url);
   await context.close();
 });
 
@@ -356,25 +393,63 @@ for (const [api, text, link] of [
   await check(`when the GitHub API says "${api}", the page says so and links to the releases`, async () => {
     const { page, context, errors } = await open({ api });
     assert.match(await page.locator("[data-release-meta]").textContent(), text);
-    assert.match(await page.locator(".rec .btn").getAttribute("href"), link);
-    assert.ok(!(await page.locator("[data-builds]").isVisible()));
+    for (const o of await options(page)) assert.match(o.href, link);
     for (const href of await primaryHrefs(page)) assert.match(href, /#download$/);
     assert.deepEqual(errors, []);
     await context.close();
   });
 }
 
+/* ------------------------------------------------------------ the guide */
+await check("the guide shows one step at a time, for Android and Windows, both ways", async () => {
+  const { page, context } = await open();
+  const visible = () =>
+    page.$$eval(".slide", (s) => s.filter((x) => x.getClientRects().length).map((x) => x.querySelector("h4").textContent));
+  const steps = async () => page.locator("[data-tour-dots] button").count();
+  assert.deepEqual(await visible(), ["Share from your phone."]);
+  assert.equal(await steps(), 3);
+  assert.ok(await page.locator("[data-tour-prev]").isDisabled());
+  await page.locator("[data-tour-next]").click();
+  assert.deepEqual(await visible(), ["Check the PIN, then accept."]);
+  await page.locator("[data-tour-dots] button").nth(2).click();
+  assert.deepEqual(await visible(), ["Find it in Downloads."]);
+  assert.ok(await page.locator("[data-tour-next]").isDisabled());
+  assert.equal(await page.locator('[data-tour-dots] [aria-current="step"]').count(), 1);
+  await page.locator('[data-tour-direction] [data-value="from"]').click();
+  assert.deepEqual(await visible(), ["Get your phone ready."]);
+  await page.locator('[data-tour-platform] [data-value="windows"]').click();
+  assert.deepEqual(await visible(), ["Get your PC ready."]);
+  assert.equal(await page.locator('[data-tour-platform] [data-value="windows"]').getAttribute("aria-selected"), "true");
+  await page.locator('[data-tour-direction] [data-value="to"]').click();
+  assert.deepEqual(await visible(), ["Keep your Mac visible."]);
+  // The arrow keys move between the tabs, and between the steps.
+  await page.locator('[data-tour-platform] [data-value="windows"]').focus();
+  await page.keyboard.press("ArrowLeft");
+  assert.equal(await page.locator('[data-tour-platform] [data-value="android"]').getAttribute("aria-selected"), "true");
+  await page.locator("[data-tour-next]").focus();
+  await page.keyboard.press("ArrowRight");
+  assert.deepEqual(await visible(), ["Check the PIN, then accept."]);
+  assert.match(await page.locator("[data-tour-status]").textContent(), /Step 2 of 3/);
+  // The Mac's screen in a step is a real screenshot, loaded.
+  const shot = page.locator(".slide.is-on .laptop__screen img:visible");
+  assert.ok(await shot.evaluate((i) => i.complete && i.naturalWidth > 0));
+  await context.close();
+});
+
 await check("without JavaScript, everything is readable and downloads go to the releases", async () => {
   const { page, context } = await open({ js: false, motion: "no-preference" });
-  for (const sel of ["h1", ".hero__lead", "#features .feature h3", ".list li", ".faq summary", ".showcase img.only-light"]) {
+  for (const sel of ["h1", ".hero__lead", ".stage img.only-light", ".slide h4", ".card", ".dl__opt", ".faq summary"]) {
     const el = page.locator(sel).first();
     assert.ok(await el.isVisible(), `${sel} is visible`);
     assert.equal(await el.evaluate((e) => getComputedStyle(e).opacity), "1", `${sel} is not faded out`);
   }
+  // Every step of every guide is listed.
+  assert.equal(await page.locator(".slide:visible").count(), 12);
+  assert.ok(!(await page.locator(".tour__nav").isVisible()), "no step buttons without scripts");
   for (const href of await primaryHrefs(page))
     assert.equal(href, "https://github.com/Mukesh-devs/squick-share/releases/latest");
-  assert.ok(await page.locator("noscript").count());
-  assert.ok(!(await page.locator("[data-rec]").isVisible()), "the lookup panel is hidden");
+  for (const o of await options(page))
+    assert.equal(o.href, "https://github.com/Mukesh-devs/squick-share/releases/latest");
   await context.close();
 });
 

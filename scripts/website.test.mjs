@@ -1,7 +1,10 @@
 // node --test scripts/website.test.mjs
 // The website's release logic (website/js/release-assets.js) and its files.
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   archFromHint,
   classifyAssets,
@@ -151,4 +154,57 @@ test("sizes read plainly", () => {
   assert.equal(formatSize(123_456_789), "123 MB");
   assert.equal(formatSize(900), "1 KB");
   assert.equal(formatSize(0), "");
+});
+
+/* ------------------------------------------------------------ the page */
+const site = join(dirname(fileURLToPath(import.meta.url)), "..", "website");
+const pages = ["index.html", "404.html"].filter((p) => existsSync(join(site, p)));
+const read = (p) => readFileSync(join(site, p), "utf8");
+
+test("the page has no version or download link written into it", () => {
+  for (const page of pages) {
+    const html = read(page);
+    assert.doesNotMatch(html, /releases\/download\//, `${page}: download links come from the API`);
+    // Not counting drawings (SVG path data) and the structured data block.
+    const text = html.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<script[\s\S]*?<\/script>/g, "");
+    assert.doesNotMatch(text, /\bv?\d+\.\d+\.\d+\b/, `${page}: no version number in the page`);
+  }
+});
+
+test("every local file the page names exists", () => {
+  const html = read("index.html");
+  const refs = new Set();
+  for (const m of html.matchAll(/(?<![-\w])(?:src|href)="([^"#:]+)"/g)) refs.add(m[1]);
+  for (const m of html.matchAll(/(?:srcset|imagesrcset)="([^"]+)"/g))
+    for (const part of m[1].split(",")) refs.add(part.trim().split(/\s+/)[0]);
+  const css = read("css/site.css");
+  for (const m of css.matchAll(/url\("(\.\.\/[^"]+)"\)/g)) refs.add(join("css", m[1]));
+  const manifest = existsSync(join(site, "site.webmanifest"))
+    ? JSON.parse(read("site.webmanifest"))
+    : { icons: [] };
+  for (const icon of manifest.icons) refs.add(icon.src);
+  assert.ok(refs.size > 20);
+  for (const ref of refs) assert.ok(existsSync(join(site, ref)), `${ref} is missing`);
+});
+
+test("the page is built to be found and read", () => {
+  const html = read("index.html");
+  assert.equal(html.match(/<h1[\s>]/g)?.length, 1, "one h1");
+  assert.match(html, /<title>SQuick Share — [^<]+<\/title>/);
+  for (const tag of ['rel="canonical"', 'property="og:image"', 'name="twitter:card"', '"@type": "SoftwareApplication"'])
+    assert.ok(html.includes(tag), `${tag} is missing`);
+  // Every picture says what it shows, or says it is decoration.
+  for (const img of html.matchAll(/<img\b[^>]*>/g)) assert.match(img[0], /\balt="/, img[0]);
+  // In-page links lead somewhere.
+  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+  for (const m of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.has(m[1]), `#${m[1]} has no target`);
+  // Nothing is loaded from another site: no CDN, fonts or trackers (the
+  // GitHub API is asked from the script, not the markup).
+  for (const m of html.matchAll(/\bsrc="(https?:[^"]+)"/g)) assert.fail(`${m[1]} is loaded from another site`);
+  for (const m of html.matchAll(/<link\b[^>]*>/g)) {
+    const rel = m[0].match(/\brel="([^"]+)"/)?.[1] ?? "";
+    const href = m[0].match(/\bhref="([^"]+)"/)?.[1] ?? "";
+    if (/stylesheet|preload|icon|manifest|modulepreload/.test(rel))
+      assert.doesNotMatch(href, /^https?:/, `${href} is loaded from another site`);
+  }
 });

@@ -1,0 +1,1497 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SQuick Share — Quick Share for your Mac</title>
+    <meta
+      name="description"
+      content="SQuick Share is a free, native Mac app that sends and receives photos, videos, files, folders and links with Android phones using Quick Share. No cable, no cloud, no account: straight over your Wi-Fi, encrypted end to end."
+    />
+    <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://mukesh-devs.github.io/squick-share/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SQuick Share" />
+    <meta property="og:title" content="SQuick Share — Quick Share for your Mac" />
+    <meta
+      property="og:description"
+      content="AirDrop-style sharing between your Mac and Android phones. Free, open source, encrypted end to end, and nothing to install on the phone."
+    />
+    <meta property="og:url" content="https://mukesh-devs.github.io/squick-share/" />
+    <meta property="og:image" content="https://mukesh-devs.github.io/squick-share/assets/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="SQuick Share: Quick Share for your Mac. The app's window with nearby Android devices and a transfer in progress."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SQuick Share — Quick Share for your Mac" />
+    <meta
+      name="twitter:description"
+      content="AirDrop-style sharing between your Mac and Android phones. Free, open source, encrypted end to end."
+    />
+    <meta name="twitter:image" content="https://mukesh-devs.github.io/squick-share/assets/og.png" />
+
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+
+    <link
+      rel="preload"
+      href="assets/fonts/geist-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preconnect" href="https://api.github.com" crossorigin />
+    <link rel="stylesheet" href="css/site.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "SQuick Share",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "macOS 13 or later",
+        "description": "A native Mac app that sends and receives files, folders and links with Android phones using Quick Share. Local, encrypted end to end, no account.",
+        "url": "https://mukesh-devs.github.io/squick-share/",
+        "downloadUrl": "https://github.com/Mukesh-devs/squick-share/releases/latest",
+        "license": "https://github.com/Mukesh-devs/squick-share/blob/main/LICENSE",
+        "image": "https://mukesh-devs.github.io/squick-share/assets/og.png",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+    <script>
+      // Before the first paint: the theme (chosen here, else the system's),
+      // and animations start hidden only when scripts run.
+      (function () {
+        var d = document.documentElement;
+        d.classList.add("js");
+        var t = null;
+        try {
+          t = localStorage.getItem("squick-share.site.theme");
+        } catch (e) {}
+        if (t !== "light" && t !== "dark")
+          t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        d.dataset.theme = t;
+      })();
+    </script>
+  </head>
+
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <svg class="sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-github" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.3-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.06.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"
+        />
+      </symbol>
+      <symbol id="i-apple" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M16.37 12.73c-.02-2.28 1.86-3.38 1.95-3.43-1.06-1.55-2.71-1.77-3.3-1.79-1.4-.14-2.74.83-3.45.83-.71 0-1.81-.81-2.97-.79-1.53.02-2.94.89-3.73 2.26-1.59 2.76-.41 6.85 1.14 9.09.76 1.1 1.66 2.33 2.85 2.29 1.14-.05 1.57-.74 2.95-.74 1.38 0 1.77.74 2.97.71 1.23-.02 2.01-1.12 2.76-2.22.87-1.27 1.23-2.5 1.25-2.57-.03-.01-2.4-.92-2.42-3.64ZM14.1 6.03c.63-.77 1.06-1.83.94-2.89-.91.04-2.01.61-2.66 1.37-.58.67-1.1 1.76-.96 2.8 1.01.08 2.05-.52 2.68-1.28Z"
+        />
+      </symbol>
+      <symbol
+        id="i-download"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12 15V3" />
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <path d="m7 10 5 5 5-5" />
+      </symbol>
+      <symbol
+        id="i-arrow"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+      </symbol>
+      <symbol
+        id="i-down"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </symbol>
+      <symbol
+        id="i-out"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M7 7h10v10" />
+        <path d="M7 17 17 7" />
+      </symbol>
+      <symbol
+        id="i-check"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.25"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M20 6 9 17l-5-5" />
+      </symbol>
+      <symbol
+        id="i-sun"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+      </symbol>
+      <symbol
+        id="i-moon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
+        />
+      </symbol>
+      <symbol
+        id="i-menu"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+      >
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </symbol>
+      <symbol
+        id="i-close"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+      >
+        <path d="M18 6 6 18M6 6l12 12" />
+      </symbol>
+      <!-- The menu bar icon's states, as section glyphs. -->
+      <symbol
+        id="i-antenna"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="9.5" r="1.75" />
+        <path d="M12 11.5V21" />
+        <path d="M8.6 6.1a4.8 4.8 0 0 0 0 6.8M15.4 6.1a4.8 4.8 0 0 1 0 6.8" />
+        <path d="M5.8 3.3a8.8 8.8 0 0 0 0 12.4M18.2 3.3a8.8 8.8 0 0 1 0 12.4" />
+      </symbol>
+      <symbol
+        id="i-recv"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="9.25" />
+        <path d="M12 7v10M8 13l4 4 4-4" />
+      </symbol>
+      <symbol
+        id="i-sendc"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="9.25" />
+        <path d="M12 17V7M8 11l4-4 4 4" />
+      </symbol>
+      <symbol
+        id="i-gauge"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m12 14 4-4" />
+        <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+      </symbol>
+      <symbol
+        id="i-layers"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"
+        />
+        <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+        <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+      </symbol>
+      <symbol
+        id="i-terminal"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m7 11 2-2-2-2" />
+        <path d="M11 13h4" />
+        <rect width="18" height="18" x="3" y="3" rx="2" />
+      </symbol>
+      <symbol
+        id="i-lock"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect width="18" height="11" x="3" y="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </symbol>
+      <symbol
+        id="i-help"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="9.25" />
+        <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3" />
+        <path d="M12 17h.01" />
+      </symbol>
+      <symbol
+        id="i-phone"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect width="12" height="20" x="6" y="2" rx="2.5" />
+        <path d="M11 18.5h2" />
+      </symbol>
+      <symbol
+        id="i-shield"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol
+        id="i-eye"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"
+        />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol
+        id="i-eye-off"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M10.73 5.08a10.74 10.74 0 0 1 11.2 6.57 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49"
+        />
+        <path d="M14.08 14.16a3 3 0 0 1-4.24-4.24" />
+        <path d="M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14" />
+        <path d="m2 2 20 20" />
+      </symbol>
+      <symbol
+        id="i-user-x"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="m17 8 5 5M22 8l-5 5" />
+      </symbol>
+      <symbol
+        id="i-user-check"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="m16 11 2 2 4-4" />
+      </symbol>
+      <symbol
+        id="i-bluetooth"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m7 7 10 10-5 5V2l5 5L7 17" />
+      </symbol>
+      <symbol
+        id="i-folder"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+        />
+      </symbol>
+      <symbol
+        id="i-link"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </symbol>
+      <symbol
+        id="i-share"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <path d="m16 6-4-4-4 4" />
+        <path d="M12 2v13" />
+      </symbol>
+      <symbol
+        id="i-history"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+        <path d="M12 7v5l4 2" />
+      </symbol>
+      <symbol
+        id="i-activity"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"
+        />
+      </symbol>
+      <symbol
+        id="i-power"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12 2v10" />
+        <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
+      </symbol>
+      <symbol
+        id="i-keyboard"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M10 8h.01M12 12h.01M14 8h.01M16 12h.01M18 8h.01M6 8h.01M7 16h10M8 12h.01" />
+        <rect width="20" height="16" x="2" y="4" rx="2" />
+      </symbol>
+      <symbol
+        id="i-chip"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect width="16" height="16" x="4" y="4" rx="2" />
+        <rect width="6" height="6" x="9" y="9" rx="1" />
+        <path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" />
+      </symbol>
+      <symbol
+        id="i-copy"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect width="14" height="14" x="8" y="8" rx="2" />
+        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+      </symbol>
+      <symbol
+        id="i-pin"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect width="20" height="12" x="2" y="6" rx="2" />
+        <path d="M7 12h.01M12 12h.01M17 12h.01" />
+      </symbol>
+    </svg>
+
+    <!-- The sections as a sidebar, like the app's (wide screens, after the hero). -->
+    <aside class="rail" aria-label="Sections" data-rail>
+      <a href="#top" data-rail-link
+        ><svg aria-hidden="true"><use href="#i-antenna" /></svg><b>SQuick Share</b></a
+      >
+      <a href="#speed" data-rail-link
+        ><svg aria-hidden="true"><use href="#i-gauge" /></svg><b>Speed</b></a
+      >
+      <a href="#features" data-rail-link
+        ><svg aria-hidden="true"><use href="#i-layers" /></svg><b>Features</b></a
+      >
+      <a href="#developers" data-rail-link
+        ><svg aria-hidden="true"><use href="#i-terminal" /></svg><b>Developers</b></a
+      >
+      <a href="#privacy" data-rail-link
+        ><svg aria-hidden="true"><use href="#i-lock" /></svg><b>Privacy</b></a
+      >
+      <a href="#download" data-rail-link
+        ><svg aria-hidden="true"><use href="#i-recv" /></svg><b>Download</b></a
+      >
+      <a href="#questions" data-rail-link
+        ><svg aria-hidden="true"><use href="#i-help" /></svg><b>Questions</b></a
+      >
+    </aside>
+
+    <header class="nav" data-nav>
+      <div class="nav__bar">
+        <a class="nav__brand" href="#top" aria-label="SQuick Share, to the top">
+          <img src="assets/icon.svg" width="34" height="34" alt="" />
+          <span>SQuick Share</span>
+        </a>
+        <span class="namebox" aria-hidden="true" data-namebox
+          ><b data-namebox-ref><svg><use href="#i-antenna" /></svg></b
+          ><span data-namebox-name>Visible</span></span
+        >
+        <nav class="nav__links" id="menu" aria-label="Main" data-menu>
+          <a href="#features">Features</a>
+          <a href="#speed">Speed</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#install">Install</a>
+          <a href="#questions">FAQ</a>
+          <a href="https://github.com/Mukesh-devs/squick-share#readme" rel="noopener"
+            >Docs <svg aria-hidden="true"><use href="#i-out" /></svg
+          ></a>
+        </nav>
+        <div class="nav__tools">
+          <a
+            class="icon-btn"
+            href="https://github.com/Mukesh-devs/squick-share"
+            rel="noopener"
+            aria-label="SQuick Share on GitHub"
+            title="SQuick Share on GitHub"
+            ><svg aria-hidden="true"><use href="#i-github" /></svg
+          ></a>
+          <button
+            class="icon-btn"
+            type="button"
+            data-theme-toggle
+            aria-label="Switch to dark theme"
+            title="Switch theme"
+          >
+            <svg class="only-light" aria-hidden="true"><use href="#i-moon" /></svg>
+            <svg class="only-dark" aria-hidden="true"><use href="#i-sun" /></svg>
+          </button>
+          <button
+            class="icon-btn nav__menu"
+            type="button"
+            aria-expanded="false"
+            aria-controls="menu"
+            aria-label="Menu"
+            data-menu-toggle
+          >
+            <svg aria-hidden="true"><use href="#i-menu" /></svg>
+          </button>
+          <a
+            class="btn btn--primary btn--sm nav__get"
+            href="https://github.com/Mukesh-devs/squick-share/releases/latest"
+            data-download-primary
+          >
+            <svg aria-hidden="true"><use href="#i-download" /></svg>
+            <span data-download-label>Download</span>
+          </a>
+        </div>
+        <span class="nav__progress" aria-hidden="true" data-progress></span>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- 01 · Hero: your Mac, visible to the phones around it -->
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="field" data-field>
+          <div class="field__rings" aria-hidden="true"></div>
+          <div class="field__waves" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="field__ring" aria-hidden="true" data-field-ring></div>
+          <div class="field__beam" aria-hidden="true" data-field-beam></div>
+          <div class="field__device" aria-hidden="true" data-field-device>
+            <span class="field__dot"><svg><use href="#i-phone" /></svg></span>
+            <span class="field__tag" data-field-tag>Your phone</span>
+          </div>
+
+          <div class="hero__grid">
+            <div class="hero__copy">
+              <p class="hero__chip reveal">
+                <span class="tag" data-release-version>Latest</span>
+                <span>Free Mac app for sharing with Android</span>
+              </p>
+              <h1 class="hero__title reveal" id="hero-title">
+                Quick Share for
+                <span class="sel">your&nbsp;Mac.<i class="sel__done" aria-hidden="true"></i></span>
+              </h1>
+              <p class="hero__lead reveal">
+                Send photos, videos, files, folders and links between your Mac and Android phones,
+                with the Quick Share button already on the phone. No cable, no cloud, no account.
+                Straight over your Wi-Fi, encrypted end to end.
+              </p>
+              <div class="hero__actions reveal">
+                <a
+                  class="btn btn--primary"
+                  href="https://github.com/Mukesh-devs/squick-share/releases/latest"
+                  data-download-primary
+                >
+                  <svg aria-hidden="true"><use href="#i-download" /></svg>
+                  <span data-download-label>Download for Mac</span>
+                </a>
+                <a class="btn" href="#features">
+                  <span>Explore features</span>
+                  <svg aria-hidden="true"><use href="#i-arrow" /></svg>
+                </a>
+                <a
+                  class="btn btn--ghost"
+                  href="https://github.com/Mukesh-devs/squick-share"
+                  rel="noopener"
+                >
+                  <svg aria-hidden="true"><use href="#i-github" /></svg>
+                  <span>GitHub</span>
+                </a>
+              </div>
+              <p class="hero__note reveal">
+                <span data-download-note>For macOS 13 or later · free and open source</span>
+                <a href="#download">All downloads</a>
+              </p>
+            </div>
+            <div class="hero__art reveal" aria-hidden="true" data-field-center>
+              <span class="hero__ref"><i></i>MacBook Pro · Visible</span>
+              <img src="assets/icon.svg" width="240" height="240" alt="" />
+            </div>
+          </div>
+        </div>
+
+        <figure class="showcase reveal" data-tilt>
+          <div class="window">
+            <button
+              class="window__shot"
+              type="button"
+              data-zoom
+              aria-label="Enlarge the screenshot"
+            >
+              <img
+                class="only-light"
+                src="assets/shots/hero-light-1280.webp"
+                srcset="
+                  assets/shots/hero-light-1280.webp 1280w,
+                  assets/shots/hero-light-2200.webp 2200w
+                "
+                sizes="(min-width: 1360px) 1180px, 92vw"
+                width="1280"
+                height="796"
+                fetchpriority="high"
+                alt="The SQuick Share window on the Send page: Redmi Note 13 wants to share 3 files and a link with PIN 4930, a drop zone for files, four nearby devices with Galaxy Tab S9 receiving at 84%, and 3 files on their way at 24.1 MB/s."
+              />
+              <img
+                class="only-dark"
+                src="assets/shots/hero-dark-1280.webp"
+                srcset="
+                  assets/shots/hero-dark-1280.webp 1280w,
+                  assets/shots/hero-dark-2200.webp 2200w
+                "
+                sizes="(min-width: 1360px) 1180px, 92vw"
+                width="1280"
+                height="796"
+                loading="lazy"
+                alt="The same Send page of SQuick Share in dark mode."
+              />
+            </button>
+            <ol class="callouts" aria-label="What the screenshot shows">
+              <li style="--x: 49.6%; --y: 25.8%">
+                <b>Request</b><span>Check the PIN, then accept</span>
+              </li>
+              <li style="--x: 61%; --y: 39.6%"><b>Drop zone</b><span>Files, folders, links</span></li>
+              <li style="--x: 36.2%; --y: 54.2%">
+                <b>Nearby devices</b><span>Drop right on a phone</span>
+              </li>
+              <li style="--x: 55.4%; --y: 96.9%">
+                <b>Live progress</b><span>Speed and time left</span>
+              </li>
+            </ol>
+          </div>
+          <figcaption>
+            Real screenshot of the app, with sample devices · a request waiting, a transfer at 84%,
+            three files on their way
+          </figcaption>
+        </figure>
+
+        <div class="ticker" aria-label="What you can share">
+          <ul class="ticker__track" data-ticker>
+            <li>Photos</li>
+            <li>Videos</li>
+            <li>Documents</li>
+            <li>PDFs</li>
+            <li>Whole folders</li>
+            <li>Links</li>
+            <li>Text</li>
+            <li>Screenshots</li>
+            <li>Presentations</li>
+            <li>Zip archives</li>
+            <li>Voice notes</li>
+            <li>APKs</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 02 · Speed -->
+      <section class="speed" id="speed" aria-labelledby="speed-title">
+        <div class="wrap">
+          <p class="eyebrow reveal">
+            <span class="eyebrow__ref"><svg aria-hidden="true"><use href="#i-gauge" /></svg></span
+            ><span class="eyebrow__name">Speed</span
+            ><span class="eyebrow__meta">Measured with a real Android phone on 5 GHz Wi-Fi</span>
+          </p>
+          <div class="speed__intro">
+            <h2 class="display sweep" id="speed-title">As fast as your Wi-Fi goes.</h2>
+            <p class="reveal">
+              Files travel straight from one device to the other over your own network, in 512 KB
+              chunks written to disk as they arrive. Nothing waits on a server, so the only limit is
+              your Wi-Fi.
+            </p>
+          </div>
+
+          <div class="fx" aria-hidden="true" data-fx>
+            <span class="fx__dir" data-fx-dir
+              ><svg class="fx__in"><use href="#i-recv" /></svg
+              ><svg class="fx__out"><use href="#i-sendc" /></svg
+            ></span>
+            <span class="fx__ref" data-fx-ref>Phone → Mac</span>
+            <span class="fx__text" data-fx-text>Receiving from an Android phone · 5 GHz Wi-Fi</span>
+            <span class="fx__bar"><i></i></span>
+          </div>
+          <dl class="cells" data-cells data-fill>
+            <div
+              class="cell"
+              data-ref="Phone → Mac"
+              data-dir="in"
+              data-fx="Receiving from an Android phone · 5 GHz Wi-Fi"
+            >
+              <dt>Phone to Mac, on 5 GHz Wi-Fi</dt>
+              <dd><span data-count="35">35</span><small>MB/s</small></dd>
+            </div>
+            <div
+              class="cell"
+              data-ref="Mac → phone"
+              data-dir="out"
+              data-fx="Sending to an Android phone · 5 GHz Wi-Fi"
+            >
+              <dt>Mac to phone, on 5 GHz Wi-Fi</dt>
+              <dd><span data-count="30">30</span><small>MB/s</small></dd>
+            </div>
+            <div
+              class="cell"
+              data-ref="Phone → Mac"
+              data-dir="in"
+              data-fx="A 1.05 GB video · phone → Mac · 5 GHz Wi-Fi"
+            >
+              <dt>A 1.05 GB video, start to finish</dt>
+              <dd><span data-count="30">30</span><small>s</small></dd>
+            </div>
+            <div
+              class="cell"
+              data-ref="11 files"
+              data-dir="in"
+              data-fx="11 files · 440 MB · one transfer"
+            >
+              <dt>Eleven files, 440 MB, in one go</dt>
+              <dd><span data-count="14">14</span><small>s</small></dd>
+            </div>
+            <div
+              class="cell cell--sm"
+              data-ref="Memory"
+              data-dir="in"
+              data-fx="A 128 MiB transfer · streamed to disk"
+            >
+              <dt>Extra memory for a 128 MiB transfer</dt>
+              <dd>~1<small>MiB</small></dd>
+            </div>
+            <div
+              class="cell cell--sm"
+              data-ref="Chunks"
+              data-dir="in"
+              data-fx="512 KB at a time · written straight to disk"
+            >
+              <dt>Chunks, written straight to disk</dt>
+              <dd>512<small>KB</small></dd>
+            </div>
+            <div
+              class="cell cell--sm"
+              data-ref="Tests"
+              data-dir="out"
+              data-fx="Crypto checked against an independent implementation"
+            >
+              <dt>Automated tests, crypto included</dt>
+              <dd>81</dd>
+            </div>
+            <div
+              class="cell cell--sm"
+              data-ref="Servers"
+              data-dir="out"
+              data-fx="Device to device · nothing in between"
+            >
+              <dt>Servers between your devices</dt>
+              <dd>0</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <!-- 03 · Features -->
+      <section class="features" id="features" aria-labelledby="features-title">
+        <div class="wrap">
+          <p class="eyebrow reveal">
+            <span class="eyebrow__ref"><svg aria-hidden="true"><use href="#i-layers" /></svg></span
+            ><span class="eyebrow__name">Features</span
+            ><span class="eyebrow__meta">The real app, with sample devices</span>
+          </p>
+          <h2 class="display features__title sweep" id="features-title">
+            Sharing that feels built into your Mac.
+          </h2>
+
+          <article class="feature" aria-labelledby="f-receive">
+            <div class="feature__text">
+              <p class="feature__no reveal">
+                <svg aria-hidden="true"><use href="#i-recv" /></svg>Receive
+              </p>
+              <h3 class="sweep" id="f-receive">Check the PIN, then accept.</h3>
+              <p class="reveal">
+                When a phone shares with your Mac, SQuick Share shows who is sending, what and how
+                big, with a 4-digit PIN. If it matches the phone, accept from the window, the
+                notification or the menu bar. Files land in Downloads and are never opened for you.
+              </p>
+              <ul class="ticks" data-fill>
+                <li>Accept or decline right from the notification</li>
+                <li>Always accept from your own phone, if you choose</li>
+                <li>A file with the same name is never overwritten</li>
+              </ul>
+              <p class="feature__stat reveal"><b>4 digits</b> on both screens, so you know it's them</p>
+            </div>
+            <figure class="feature__shot" data-scrub>
+              <div class="window">
+                <button
+                  class="window__shot"
+                  type="button"
+                  data-zoom
+                  aria-label="Enlarge the screenshot"
+                >
+                  <img
+                    class="only-light"
+                    src="assets/shots/receive-light-1280.webp"
+                    srcset="
+                      assets/shots/receive-light-1280.webp 1280w,
+                      assets/shots/receive-light-2200.webp 2200w
+                    "
+                    sizes="(min-width: 1240px) 1160px, 92vw"
+                    width="1280"
+                    height="796"
+                    loading="lazy"
+                    alt="The Receive page: the Mac is visible to everyone; Redmi Note 13 wants to share 3 files and a link, 188 MB, with the PIN 4 9 3 0 shown large beside Accept and Decline; below, 3 files from Pixel 9 are arriving at 30.5 MB/s."
+                  />
+                  <img
+                    class="only-dark"
+                    src="assets/shots/receive-dark-1280.webp"
+                    srcset="
+                      assets/shots/receive-dark-1280.webp 1280w,
+                      assets/shots/receive-dark-2200.webp 2200w
+                    "
+                    sizes="(min-width: 1240px) 1160px, 92vw"
+                    width="1280"
+                    height="796"
+                    loading="lazy"
+                    alt="The same Receive page in dark mode."
+                  />
+                </button>
+              </div>
+            </figure>
+          </article>
+
+          <article class="feature" aria-labelledby="f-send">
+            <div class="feature__text">
+              <p class="feature__no reveal">
+                <svg aria-hidden="true"><use href="#i-sendc" /></svg>Send
+              </p>
+              <h3 class="sweep" id="f-send">Drop files right on a phone.</h3>
+              <p class="reveal">
+                Phones, tablets and PCs nearby show up as tiles. Drop files, folders or text on one,
+                click it to choose files, or right-click in Finder and pick Share › SQuick Share. Each
+                transfer shows its speed and the time left, with Cancel one click away.
+              </p>
+              <ul class="ticks" data-fill>
+                <li>Whole folders, with their structure kept</li>
+                <li>Links and text as well as files</li>
+                <li>Phones appear sooner: Bluetooth listens for them</li>
+              </ul>
+              <p class="feature__stat reveal"><b>30 MB/s</b> from Mac to phone on 5 GHz Wi-Fi</p>
+            </div>
+            <figure class="feature__shot" data-scrub>
+              <div class="window">
+                <button
+                  class="window__shot"
+                  type="button"
+                  data-zoom
+                  aria-label="Enlarge the screenshot"
+                >
+                  <img
+                    class="only-light"
+                    src="assets/shots/send-light-1280.webp"
+                    srcset="
+                      assets/shots/send-light-1280.webp 1280w,
+                      assets/shots/send-light-2200.webp 2200w
+                    "
+                    sizes="(min-width: 1240px) 1160px, 92vw"
+                    width="1280"
+                    height="796"
+                    loading="lazy"
+                    alt="The Send page: a large drop zone for photos, videos, documents, folders and links, and below it four nearby devices: Galaxy Tab S9, Pixel 9, Office PC and Redmi Note 13."
+                  />
+                  <img
+                    class="only-dark"
+                    src="assets/shots/send-dark-1280.webp"
+                    srcset="
+                      assets/shots/send-dark-1280.webp 1280w,
+                      assets/shots/send-dark-2200.webp 2200w
+                    "
+                    sizes="(min-width: 1240px) 1160px, 92vw"
+                    width="1280"
+                    height="796"
+                    loading="lazy"
+                    alt="The same Send page in dark mode."
+                  />
+                </button>
+              </div>
+            </figure>
+          </article>
+
+          <article class="feature" aria-labelledby="f-history">
+            <div class="feature__text">
+              <p class="feature__no reveal">
+                <svg aria-hidden="true"><use href="#i-history" /></svg>History
+              </p>
+              <h3 class="sweep" id="f-history">Everything you shared, by day.</h3>
+              <p class="reveal">
+                History keeps every file, link and text you sent or received, grouped by day, with
+                the device it came from. Double-click to open, drag a file out to Finder, or search
+                and filter to what you received or sent.
+              </p>
+              <ul class="ticks" data-fill>
+                <li>Received links open only when you click them</li>
+                <li>Show any file in Finder</li>
+                <li>Transfers that didn't go through say why</li>
+              </ul>
+              <p class="feature__stat reveal"><b>1 click</b> from a transfer to its file in Finder</p>
+            </div>
+            <figure class="feature__shot" data-scrub>
+              <div class="window">
+                <button
+                  class="window__shot"
+                  type="button"
+                  data-zoom
+                  aria-label="Enlarge the screenshot"
+                >
+                  <img
+                    class="only-light"
+                    src="assets/shots/history-light-1280.webp"
+                    srcset="
+                      assets/shots/history-light-1280.webp 1280w,
+                      assets/shots/history-light-2200.webp 2200w
+                    "
+                    sizes="(min-width: 1240px) 1160px, 92vw"
+                    width="1280"
+                    height="796"
+                    loading="lazy"
+                    alt="The History page with All, Received and Sent filters and a search field: today a video, a photo and a link received from Redmi Note 13 and Pixel 9; yesterday a PDF sent, and a Keynote file the other device declined."
+                  />
+                  <img
+                    class="only-dark"
+                    src="assets/shots/history-dark-1280.webp"
+                    srcset="
+                      assets/shots/history-dark-1280.webp 1280w,
+                      assets/shots/history-dark-2200.webp 2200w
+                    "
+                    sizes="(min-width: 1240px) 1160px, 92vw"
+                    width="1280"
+                    height="796"
+                    loading="lazy"
+                    alt="The same History page in dark mode."
+                  />
+                </button>
+              </div>
+            </figure>
+          </article>
+
+          <div class="more">
+            <h3 class="more__title sweep">And everything else you'd expect.</h3>
+            <ul class="list" aria-label="More features" data-fill>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-bluetooth" /></svg></span>
+                <b>Found faster</b>
+                <span
+                  >When a phone opens Quick Share, Bluetooth hears it and your Mac announces itself
+                  at once. It only listens; nothing is sent.</span
+                >
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-folder" /></svg></span>
+                <b>Folders and many files</b>
+                <span>Whole folders with their structure, or dozens of files in one go.</span>
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-link" /></svg></span>
+                <b>Links and text</b>
+                <span
+                  >Arrive as a notification with Open Link and Copy, and stay in History. Nothing
+                  opens by itself.</span
+                >
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-recv" /></svg></span>
+                <b>Progress in the menu bar</b>
+                <span
+                  >A ring around the menu bar icon fills as files go, so you can follow a transfer
+                  with the window closed.</span
+                >
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-eye" /></svg></span>
+                <b>Visibility</b>
+                <span>Visible to everyone, hidden, or visible for 10 minutes with a countdown.</span>
+              </li>
+              <li>
+                <span class="list__icon"
+                  ><svg aria-hidden="true"><use href="#i-user-check" /></svg
+                ></span>
+                <b>Trusted devices</b>
+                <span>Accept automatically from your own phone, after you approve it once.</span>
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-share" /></svg></span>
+                <b>Finder and Safari</b>
+                <span>Right-click files, or share a page, and choose Share › SQuick Share.</span>
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-antenna" /></svg></span>
+                <b>A small menu bar menu</b>
+                <span>Requests, transfers and visibility one click away, from any app.</span>
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-activity" /></svg></span>
+                <b>Built-in diagnostics</b>
+                <span
+                  >Copy Diagnostic Log in one click. It never holds file contents, file names or
+                  keys.</span
+                >
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-power" /></svg></span>
+                <b>Mac niceties</b>
+                <span
+                  >Open at login, pick the download folder, keep to Wi-Fi or Ethernet, turn
+                  notifications on or off.</span
+                >
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-keyboard" /></svg></span>
+                <b>Keyboard and VoiceOver</b>
+                <span
+                  >⌘1 to ⌘3 for Send, Receive and History, ⌘, for Settings, and VoiceOver labels
+                  throughout.</span
+                >
+              </li>
+              <li>
+                <span class="list__icon"><svg aria-hidden="true"><use href="#i-chip" /></svg></span>
+                <b>Native on every Mac</b>
+                <span
+                  >Swift and SwiftUI, Apple silicon and Intel, light and dark, macOS 13 or
+                  later.</span
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- 04 · Developers -->
+      <section class="automation" id="developers" aria-labelledby="dev-title">
+        <div class="wrap automation__grid">
+          <p class="eyebrow reveal">
+            <span class="eyebrow__ref"><svg aria-hidden="true"><use href="#i-terminal" /></svg></span
+            ><span class="eyebrow__name">Developers</span
+            ><span class="eyebrow__meta">Open source, written from scratch in Swift</span>
+          </p>
+          <div class="automation__text">
+            <h2 class="display sweep" id="dev-title">Read it, build it, script it.</h2>
+            <p class="reveal">
+              SQuick Share speaks Google's Quick Share protocol through its own Swift package: no UI,
+              81 tests, and every protocol constant traced to Google's open-source code. The same
+              package has a command-line tool that sends, receives and finds devices from Terminal.
+            </p>
+            <div class="tools" role="table" data-fill aria-label="Commands">
+              <div role="row">
+                <code role="cell">receive</code
+                ><span role="cell">Receive in Terminal, into a folder you choose</span>
+              </div>
+              <div role="row">
+                <code role="cell">send</code
+                ><span role="cell">Send files or text to a nearby device by name</span>
+              </div>
+              <div role="row">
+                <code role="cell">browse</code
+                ><span role="cell">List the Quick Share devices around you</span>
+              </div>
+              <div role="row">
+                <code role="cell">build-release.sh</code
+                ><span role="cell">Universal, Apple silicon and Intel builds</span>
+              </div>
+              <div role="row">
+                <code role="cell">make-dmg.sh</code
+                ><span role="cell">A disk image for every build</span>
+              </div>
+            </div>
+          </div>
+          <div class="term reveal" data-term>
+            <div class="term__bar" aria-hidden="true">
+              <i></i><i></i><i></i><span>Terminal — QuickShareCore</span>
+            </div>
+            <pre
+              class="term__body"
+            ><code><span class="c"># Receive into Downloads, with the details</span>
+<span class="p">$</span> <span data-type>swift run squick-share-cli receive --verbose</span>
+
+<span class="c"># Send a video to a phone nearby</span>
+<span class="p">$</span> <span data-type>swift run squick-share-cli send --to "Pixel 9" holiday.mov</span>
+
+<span class="c"># Build the app and install it</span>
+<span class="p">$</span> <span data-type>./scripts/build-release.sh --install</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- 05 · Privacy -->
+      <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+        <div class="wrap">
+          <p class="eyebrow reveal">
+            <span class="eyebrow__ref"><svg aria-hidden="true"><use href="#i-lock" /></svg></span
+            ><span class="eyebrow__name">Privacy</span
+            ><span class="eyebrow__meta">Local and encrypted</span>
+          </p>
+          <p class="privacy__big sweep" aria-hidden="true">
+            <span class="privacy__zero">0</span> servers in between.
+          </p>
+          <h2 class="privacy__title reveal" id="privacy-title">
+            Your files go straight from one device to the other.
+          </h2>
+          <div class="privacy__grid" data-fill>
+            <div class="pcell">
+              <svg aria-hidden="true"><use href="#i-user-x" /></svg><b>No account</b
+              ><span>Open the app and share. Nothing to sign up for, on either device.</span>
+            </div>
+            <div class="pcell">
+              <svg aria-hidden="true"><use href="#i-eye-off" /></svg><b>No tracking</b
+              ><span>No analytics, no telemetry, no cloud. It only talks to devices on your network.</span>
+            </div>
+            <div class="pcell">
+              <svg aria-hidden="true"><use href="#i-shield" /></svg><b>Encrypted end to end</b
+              ><span>Fresh keys for every transfer, and a PIN to confirm the other device.</span>
+            </div>
+          </div>
+          <p class="privacy__small reveal">
+            After a P-256 key exchange, every message is AES-256 encrypted and HMAC-SHA256 signed.
+            Incoming names are cleaned up, files are written only inside the folder you choose, and
+            the app runs in the macOS App Sandbox with the Hardened Runtime. Open source under the
+            MIT License.
+          </p>
+        </div>
+      </section>
+
+      <!-- 06 · Download -->
+      <section class="download" id="download" aria-labelledby="download-title">
+        <div class="wrap">
+          <p class="eyebrow reveal">
+            <span class="eyebrow__ref"><svg aria-hidden="true"><use href="#i-recv" /></svg></span
+            ><span class="eyebrow__name">Download</span
+            ><span class="eyebrow__meta">Free, open source, no account</span>
+          </p>
+          <div class="download__head">
+            <h2 class="display sweep" id="download-title">
+              Get SQuick Share <span class="tag tag--lg" data-release-version>Latest</span>
+            </h2>
+            <p class="download__meta" data-release-meta>
+              Disk images for every Mac are published on GitHub Releases. For macOS 13 or later.
+            </p>
+          </div>
+
+          <noscript>
+            <p class="download__nojs">
+              <a
+                class="btn btn--primary"
+                href="https://github.com/Mukesh-devs/squick-share/releases/latest"
+                >Download the latest release from GitHub</a
+              >
+            </p>
+          </noscript>
+
+          <div class="rec" data-rec>
+            <p class="rec__loading">Looking up the latest release…</p>
+          </div>
+
+          <div class="builds" data-builds data-fill>
+            <article class="build" data-build="universal" aria-labelledby="b-universal">
+              <header class="build__head">
+                <span class="build__icon"><svg aria-hidden="true"><use href="#i-apple" /></svg></span>
+                <div>
+                  <h3 id="b-universal">Universal</h3>
+                  <p>Any Mac · pick this if unsure</p>
+                </div>
+                <span class="build__badge" data-build-badge hidden>This Mac</span>
+              </header>
+              <div class="build__main" data-build-main>
+                <p class="build__wait">Looking up the files…</p>
+              </div>
+              <div class="build__more" data-build-more hidden>
+                <p class="build__label">Also in this build</p>
+                <div data-build-list></div>
+              </div>
+            </article>
+            <article class="build" data-build="arm64" aria-labelledby="b-arm64">
+              <header class="build__head">
+                <span class="build__icon"><svg aria-hidden="true"><use href="#i-chip" /></svg></span>
+                <div>
+                  <h3 id="b-arm64">Apple silicon</h3>
+                  <p>M1 and later · smaller</p>
+                </div>
+                <span class="build__badge" data-build-badge hidden>This Mac</span>
+              </header>
+              <div class="build__main" data-build-main>
+                <p class="build__wait">Looking up the files…</p>
+              </div>
+              <div class="build__more" data-build-more hidden>
+                <p class="build__label">Also in this build</p>
+                <div data-build-list></div>
+              </div>
+            </article>
+            <article class="build" data-build="x86_64" aria-labelledby="b-intel">
+              <header class="build__head">
+                <span class="build__icon"><svg aria-hidden="true"><use href="#i-chip" /></svg></span>
+                <div>
+                  <h3 id="b-intel">Intel</h3>
+                  <p>Intel Macs · smaller</p>
+                </div>
+                <span class="build__badge" data-build-badge hidden>This Mac</span>
+              </header>
+              <div class="build__main" data-build-main>
+                <p class="build__wait">Looking up the files…</p>
+              </div>
+              <div class="build__more" data-build-more hidden>
+                <p class="build__label">Also in this build</p>
+                <div data-build-list></div>
+              </div>
+            </article>
+          </div>
+
+          <p class="dl-links">
+            <a href="#" data-release-checksums hidden rel="noopener">SHA-256 checksums</a>
+            <a href="https://github.com/Mukesh-devs/squick-share/releases" rel="noopener"
+              >All releases</a
+            >
+            <a href="https://github.com/Mukesh-devs/squick-share#build-from-source" rel="noopener"
+              >Build from source</a
+            >
+            <span>Not sure which Mac you have? Apple menu › About This Mac.</span>
+          </p>
+
+          <details class="notes" data-release-notes hidden>
+            <summary>
+              <span>What's new in <span data-release-name>this release</span></span>
+              <svg aria-hidden="true"><use href="#i-down" /></svg>
+            </summary>
+            <div class="notes__body" data-release-body></div>
+            <a class="notes__link" href="#" data-release-link rel="noopener"
+              >Read it on GitHub <svg aria-hidden="true"><use href="#i-out" /></svg
+            ></a>
+          </details>
+
+          <div class="install" id="install" aria-labelledby="install-title">
+            <h3 class="more__title sweep" id="install-title">Install in two minutes.</h3>
+            <ol class="steps" data-fill>
+              <li class="step">
+                <span class="step__no">1</span>
+                <b>Copy it to Applications</b>
+                <span>Open the .dmg and drag SQuick Share onto the Applications folder.</span>
+              </li>
+              <li class="step">
+                <span class="step__no">2</span>
+                <b>Allow it to open, once</b>
+                <span
+                  >It's free and not notarized by Apple, so macOS asks you to confirm it: open it,
+                  then System Settings › Privacy &amp; Security › Open Anyway. Or run:</span
+                >
+                <span class="cmd"
+                  ><code data-copy-text
+                    >xattr -dr com.apple.quarantine "/Applications/SQuick Share.app"</code
+                  ><button class="cmd__copy" type="button" data-copy aria-label="Copy the command">
+                    <svg aria-hidden="true"><use href="#i-copy" /></svg></button
+                ></span>
+              </li>
+              <li class="step">
+                <span class="step__no">3</span>
+                <b>Say yes to the local network</b>
+                <span
+                  >When macOS asks to find devices on your local network, click Allow. Allow
+                  notifications and Bluetooth too, so phones find your Mac sooner.</span
+                >
+              </li>
+              <li class="step step--phone">
+                <span class="step__no"><svg aria-hidden="true"><use href="#i-phone" /></svg></span>
+                <b>On your Android phone: nothing</b>
+                <span
+                  >Quick Share is already there. Share anything, tap Quick Share and pick your
+                  Mac.</span
+                >
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- 07 · Questions -->
+      <section class="questions" id="questions" aria-labelledby="q-title">
+        <div class="wrap questions__grid">
+          <p class="eyebrow reveal">
+            <span class="eyebrow__ref"><svg aria-hidden="true"><use href="#i-help" /></svg></span
+            ><span class="eyebrow__name">Questions</span
+            ><span class="eyebrow__meta">Short answers</span>
+          </p>
+          <div class="questions__side">
+            <h2 class="display sweep" id="q-title">Good to know.</h2>
+            <p>
+              Something else?
+              <a href="https://github.com/Mukesh-devs/squick-share/issues" rel="noopener"
+                >Ask on GitHub</a
+              >
+            </p>
+          </div>
+          <div class="faq" data-fill>
+            <details>
+              <summary>
+                Is it really free?<svg aria-hidden="true"><use href="#i-down" /></svg>
+              </summary>
+              <p>
+                Yes. SQuick Share is open source under the MIT License, free for personal and
+                commercial use, with no paid tier and no account.
+              </p>
+            </details>
+            <details>
+              <summary>
+                Do I need an app on my phone?<svg aria-hidden="true"><use href="#i-down" /></svg>
+              </summary>
+              <p>
+                No. It works with Quick Share, which is already on Android phones: share anything,
+                tap Quick Share and pick your Mac. It's tested with Google's Quick Share in both
+                directions; Pixel and Samsung phones use the same protocol.
+              </p>
+            </details>
+            <details>
+              <summary>
+                My phone doesn't see my Mac. What now?<svg aria-hidden="true">
+                  <use href="#i-down" />
+                </svg>
+              </summary>
+              <p>
+                Check that both are on the same Wi-Fi (not a guest network) and that you clicked
+                Allow when macOS asked about the local network. Then choose Visibility › Announce
+                Again from the menu bar icon. On Xiaomi and Redmi phones, use Google's Quick Share,
+                not Xiaomi Share.
+                <a
+                  href="https://github.com/Mukesh-devs/squick-share/blob/main/docs/TESTING.md#if-the-mac-does-not-appear-on-the-phone"
+                  rel="noopener"
+                  >More help</a
+                >
+              </p>
+            </details>
+            <details>
+              <summary>
+                Why does macOS warn me the first time?<svg aria-hidden="true">
+                  <use href="#i-down" />
+                </svg>
+              </summary>
+              <p>
+                SQuick Share is signed ad hoc rather than notarized by Apple, so macOS asks you to
+                confirm it once: System Settings › Privacy &amp; Security › Open Anyway. The disk
+                images are built by GitHub Actions from the public source.
+              </p>
+            </details>
+            <details>
+              <summary>
+                Does it work with iPhone, Windows, or over the internet?<svg aria-hidden="true">
+                  <use href="#i-down" />
+                </svg>
+              </summary>
+              <p>
+                It's for Macs and Android devices on the same Wi-Fi. Transfers over the internet,
+                Wi-Fi Direct and Bluetooth aren't supported. Quick Share for Windows uses the same
+                protocol and should work, but hasn't been tested yet.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer__top">
+        <div class="footer__brand">
+          <img src="assets/icon.svg" width="48" height="48" alt="" />
+          <p>Quick Share for your Mac. Send and receive with Android phones over your own Wi-Fi.</p>
+        </div>
+        <nav class="footer__links" aria-label="Project">
+          <a href="https://github.com/Mukesh-devs/squick-share" rel="noopener">GitHub</a>
+          <a href="https://github.com/Mukesh-devs/squick-share/releases" rel="noopener">Releases</a>
+          <a href="https://github.com/Mukesh-devs/squick-share#readme" rel="noopener"
+            >Documentation</a
+          >
+          <a href="https://github.com/Mukesh-devs/squick-share/issues" rel="noopener"
+            >Report an issue</a
+          >
+          <a href="https://github.com/Mukesh-devs/squick-share/blob/main/LICENSE" rel="noopener"
+            >MIT License</a
+          >
+        </nav>
+      </div>
+      <p class="footer__mark" aria-hidden="true"><span data-fit>SQuick Share</span></p>
+      <p class="footer__base">
+        <span>Built with Swift and SwiftUI</span>
+        <span>Free and open source</span>
+        <a href="#top"
+          >Back to top <svg aria-hidden="true"><use href="#i-arrow" /></svg
+        ></a>
+      </p>
+      <p class="footer__legal">
+        Quick Share and Android are trademarks of Google LLC; Mac and macOS are trademarks of Apple
+        Inc. SQuick Share is an independent project, not affiliated with either.
+      </p>
+    </footer>
+
+    <dialog class="lightbox" data-lightbox aria-label="Screenshot">
+      <button class="lightbox__close" type="button" aria-label="Close" data-lightbox-close>
+        <svg aria-hidden="true"><use href="#i-close" /></svg>
+      </button>
+      <img alt="" data-lightbox-img />
+    </dialog>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

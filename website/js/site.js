@@ -180,6 +180,21 @@ function tour() {
   let flow = null;
   let slides = [];
 
+  // The step on show plays like a short clip, again every few seconds, while
+  // the guide is on screen (never with reduced motion).
+  const CLIP_MS = 7000;
+  let onScreen = false;
+  let timer = 0;
+  const play = () => {
+    clearTimeout(timer);
+    for (const s of $$(".slide.is-play", root)) s.classList.remove("is-play");
+    const slide = slides[state.index];
+    if (!slide || !onScreen || document.hidden || reduced()) return;
+    void slide.offsetWidth; // restart the animations
+    slide.classList.add("is-play");
+    timer = setTimeout(play, CLIP_MS);
+  };
+
   const select = (tabs, value) => {
     for (const t of tabs) {
       const on = t.dataset.value === value;
@@ -197,10 +212,12 @@ function tour() {
     prev.disabled = state.index === 0;
     next.disabled = state.index === slides.length - 1;
     if (status) status.textContent = `Step ${state.index + 1} of ${slides.length}`;
+    play();
   };
   const open = () => {
     flow = flows.find((f) => f.dataset.flow === `${state.platform}-${state.direction}`);
     for (const f of flows) f.hidden = f !== flow;
+    for (const s of $$("[data-step]", root)) s.classList.remove("is-on", "is-play");
     slides = $$("[data-step]", flow);
     dots.replaceChildren(
       ...slides.map((_, k) => {
@@ -255,6 +272,16 @@ function tour() {
     x0 = null;
     if (Math.abs(dx) > 50) show(state.index + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
   });
+
+  new IntersectionObserver(
+    ([e]) => {
+      if (e.isIntersecting === onScreen) return;
+      onScreen = e.isIntersecting;
+      play();
+    },
+    { threshold: 0.3 },
+  ).observe($(".flows", root));
+  document.addEventListener("visibilitychange", play);
 
   // Load every step's pictures once the guide is near, so steps switch instantly.
   const io = new IntersectionObserver(

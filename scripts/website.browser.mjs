@@ -436,6 +436,29 @@ await check("the guide shows one step at a time, for Android and Windows, both w
   await context.close();
 });
 
+await check("the guide's steps play like clips with motion on, and stay still with reduced motion", async () => {
+  let { page, context, errors } = await open({ motion: "no-preference" });
+  await page.locator(".flows").scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelector(".flow:not([hidden]) .slide.is-play"));
+  const running = () =>
+    page.evaluate(() =>
+      document
+        .querySelector(".flow:not([hidden]) .slide.is-on")
+        .getAnimations({ subtree: true })
+        .filter((a) => a.playState === "running").length,
+    );
+  assert.ok((await running()) > 0, "the step on show plays");
+  await page.locator("[data-tour-next]").click();
+  assert.equal(await page.locator(".slide.is-play").count(), 1, "only the step on show plays");
+  assert.deepEqual(errors, []);
+  await context.close();
+  ({ page, context } = await open({ motion: "reduce" }));
+  await page.locator(".flows").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator(".slide.is-play").count(), 0, "nothing plays with reduced motion");
+  await context.close();
+});
+
 await check("without JavaScript, everything is readable and downloads go to the releases", async () => {
   const { page, context } = await open({ js: false, motion: "no-preference" });
   for (const sel of ["h1", ".hero__lead", ".stage img.only-light", ".slide h4", ".card", ".dl__opt", ".faq summary"]) {

@@ -24,7 +24,12 @@ checks below serve the site under that path.
    link with a Mac, whose screen shows the real request in SQuick Share.
 2. **How it works**: a step-by-step guide, with Android or with a Windows PC, to your Mac or
    from it: four guides of three steps. Steps on the Mac show real screenshots; steps on the
-   phone or the PC show a simple drawing of Quick Share there.
+   phone or the PC show a simple drawing of Quick Share there. Each step plays like a short
+   clip while it's on screen, again every 7 seconds: taps on the phone, the pointer clicking
+   on the Mac or the PC, highlights, progress rings, the PIN appearing. No video: the pieces
+   are elements (`fx-tap`, `fx-cursor`, `fx-box`, `fx-ring`, `fx-wave`) placed over the
+   screenshot in percent of its size, so they stay sharp and follow the theme. With reduced
+   motion, or without scripts, each step shows its finished state.
 3. **Features**: six short cards.
 4. **Privacy**: "0 servers in between", and three cards.
 5. **Download**: one card with the Apple silicon, Intel and Universal disk images, then the
@@ -74,13 +79,13 @@ told in SQuick Share's own world instead of a spreadsheet's:
 
 | DataLiq (a spreadsheet) | SQuick Share (sharing nearby) |
 | --- | --- |
-| Cell grid behind the hero | Discovery rings around the headline, sending out a wave every few seconds, fading downward |
+| Cell grid behind the hero | Discovery rings around the headline, still, fading downward |
 | The app's window, tilted | An Android phone sharing with a Mac, both standing behind the ticker |
 | "in seconds." as a selected range with the fill handle | "your Mac." as a transfer: a capsule whose progress bar fills, ending in a check |
 | Section labels as cell references (A2 Speed) | Section labels as the menu bar icon's states: a glyph that pings as it arrives |
 | The name box in the header | A status chip, like the menu bar icon, with the section in view |
 | Headings filled in by a selection dragged by its fill handle | Headings filled in behind a transfer capsule and its progress knob |
-| Feature articles with screenshots | A guide in steps, one card at a time, with tabs for Android and Windows and for each direction |
+| Feature articles with screenshots | A guide in steps, one card at a time, with tabs for Android and Windows and for each direction; each step plays like a short clip |
 | Row numbers of the sections on the left | The sections as a small sidebar, like the app's |
 
 The colour is the app's blue (`AccentColor` in `SquickShare/Assets.xcassets`): `#0074f0` in

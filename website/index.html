@@ -232,6 +232,10 @@
         <rect width="14" height="14" x="8" y="8" rx="2" />
         <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
       </symbol>
+      <!-- The pointer, for the guide's clips. -->
+      <symbol id="i-pointer" viewBox="0 0 20 24">
+        <path d="M2.5 1.8v17.4l4.4-4.2 3 6.8 3-1.3-2.9-6.6h6.2z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round" />
+      </symbol>
       <!-- A phone's status bar. -->
       <symbol id="i-signal" viewBox="0 0 24 24" fill="currentColor">
         <rect x="2" y="15" width="3.5" height="6" rx="1" />
@@ -338,7 +342,6 @@
       <section class="hero" id="top" aria-labelledby="hero-title">
         <div class="field" data-field>
           <div class="field__rings" aria-hidden="true"></div>
-          <div class="field__waves" aria-hidden="true"><i></i><i></i><i></i></div>
 
           <div class="hero__copy">
             <p class="hero__chip reveal">
@@ -534,7 +537,7 @@
                             <span class="qs__what"><b>Redmi Note 13</b><small>Everyone nearby</small></span>
                           </div>
                           <p class="qs__label">Sharing</p>
-                          <div class="qs__card">
+                          <div class="qs__card a-pop" style="--d: 0.2s">
                             <span class="qs__thumbs"
                               ><i class="t-img"><svg><use href="#i-image" /></svg></i
                               ><i class="t-vid"><svg><use href="#i-play" /></svg></i
@@ -545,15 +548,15 @@
                           </div>
                           <p class="qs__label">Send to nearby devices</p>
                           <div class="qs__devices">
-                            <span class="qs__dev is-on"
-                              ><i><svg><use href="#i-laptop" /></svg><em><svg><use href="#i-check" /></svg></em></i
+                            <span class="qs__dev is-on a-pop a-pick" style="--d: 0.6s; --p: 2s; --c: 3.5s"
+                              ><i><svg><use href="#i-laptop" /></svg><fx-ring style="--s: 128%; --sw: 5; --d: 2s; --t: 1.4s"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" pathLength="100" /></svg></fx-ring><fx-tap style="--s: 13cqw; --d: 1.75s"></fx-tap><em><svg><use href="#i-check" /></svg></em></i
                               ><b>MacBook Pro</b><small>PIN 4930</small></span
                             >
-                            <span class="qs__dev"
+                            <span class="qs__dev a-pop" style="--d: 0.8s"
                               ><i><svg><use href="#i-tablet" /></svg></i><b>Galaxy Tab S9</b
                               ><small>Tablet</small></span
                             >
-                            <span class="qs__dev"
+                            <span class="qs__dev a-pop" style="--d: 1s"
                               ><i><svg><use href="#i-laptop" /></svg></i><b>Office PC</b
                               ><small>Laptop</small></span
                             >
@@ -602,6 +605,11 @@
                             loading="lazy"
                             alt="The same Receive page in dark mode."
                           />
+                          <fx-layer aria-hidden="true">
+                            <fx-box style="--x: 69.6%; --y: 52.8%; --w: 16.2%; --h: 7.8%; --d: 0.4s"></fx-box>
+                            <fx-cursor style="--x: 91.4%; --y: 52.1%; --fx: -26cqw; --fy: 12cqw; --d: 1.3s; --stay: 2.6s"><svg><use href="#i-pointer" /></svg></fx-cursor>
+                            <fx-tap style="--x: 91.4%; --y: 52.1%; --d: 2.45s"></fx-tap>
+                          </fx-layer>
                         </button>
                       </div>
                       <div class="laptop__base" aria-hidden="true"></div>
@@ -647,6 +655,13 @@
                             loading="lazy"
                             alt="The same History page in dark mode."
                           />
+                          <fx-layer aria-hidden="true">
+                            <fx-box style="--x: 22.6%; --y: 36.6%; --w: 74.9%; --h: 8.4%; --d: 0.3s; --r: 0.8cqw"></fx-box>
+                            <fx-box style="--x: 22.6%; --y: 45%; --w: 74.9%; --h: 8.8%; --d: 0.65s; --r: 0.8cqw"></fx-box>
+                            <fx-box style="--x: 22.6%; --y: 53.8%; --w: 74.9%; --h: 8.6%; --d: 1s; --r: 0.8cqw"></fx-box>
+                            <fx-cursor style="--x: 30.4%; --y: 90.5%; --fx: 22cqw; --fy: -16cqw; --d: 2s"><svg><use href="#i-pointer" /></svg></fx-cursor>
+                            <fx-tap style="--x: 30.4%; --y: 90.5%; --d: 3.15s"></fx-tap>
+                          </fx-layer>
                         </button>
                       </div>
                       <div class="laptop__base" aria-hidden="true"></div>
@@ -681,9 +696,9 @@
                         </div>
                         <div class="qs qs--center">
                           <p class="qs__title">Quick Share</p>
-                          <div class="qs__radar"><i></i><i></i><i></i><span><svg><use href="#i-phone" /></svg></span></div>
-                          <p class="qs__big">Ready to receive</p>
-                          <p class="qs__sub">Visible to nearby devices as <b>Pixel 9</b></p>
+                          <div class="qs__radar"><i></i><i></i><i></i><span><svg><use href="#i-phone" /></svg><fx-tap style="--s: 26cqw; --d: 0.4s"></fx-tap></span></div>
+                          <p class="qs__big a-pop" style="--d: 0.8s">Ready to receive</p>
+                          <p class="qs__sub a-pop" style="--d: 1s">Visible to nearby devices as <b>Pixel 9</b></p>
                         </div>
                       </div>
                     </div>
@@ -728,6 +743,11 @@
                             loading="lazy"
                             alt="The same Send page in dark mode."
                           />
+                          <fx-layer aria-hidden="true">
+                            <fx-cursor style="--x: 50.5%; --y: 55.4%; --fx: -22cqw; --fy: -17cqw; --d: 0.3s; --stay: 1.6s"><fx-chip><i class="t-img"><svg><use href="#i-image" /></svg></i>IMG_2041.jpg</fx-chip><svg><use href="#i-pointer" /></svg></fx-cursor>
+                            <fx-box style="--x: 41.7%; --y: 46.9%; --w: 17.7%; --h: 23.7%; --d: 1.2s"></fx-box>
+                            <fx-ring style="--x: 50.5%; --y: 55.4%; --s: 7.6cqw; --sw: 4; --d: 1.6s; --t: 1.8s"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" pathLength="100" /></svg></fx-ring>
+                          </fx-layer>
                         </button>
                       </div>
                       <div class="laptop__base" aria-hidden="true"></div>
@@ -755,7 +775,7 @@
                         </div>
                         <div class="qs">
                           <p class="qs__title">Quick Share</p>
-                          <div class="qs__ask">
+                          <div class="qs__ask a-pop" style="--d: 0.15s">
                             <span class="qs__avatar"><svg><use href="#i-laptop" /></svg></span>
                             <b>MacBook Pro</b>
                             <small>wants to share 3 files · 28.4 MB</small>
@@ -764,8 +784,11 @@
                               ><i class="t-img"><svg><use href="#i-image" /></svg></i
                               ><i class="t-doc"><svg><use href="#i-file" /></svg></i
                             ></span>
-                            <span class="qs__pin"><i>1</i><i>2</i><i>3</i><i>4</i></span>
-                            <span class="qs__buttons"><span>Decline</span><span class="is-main">Accept</span></span>
+                            <span class="qs__pin"><i class="a-pop" style="--d: 0.9s">1</i><i class="a-pop" style="--d: 1.05s">2</i><i class="a-pop" style="--d: 1.2s">3</i><i class="a-pop" style="--d: 1.35s">4</i></span>
+                            <span class="qs__end">
+                              <span class="qs__buttons a-hide" style="--d: 2.75s"><span>Decline</span><span class="is-main">Accept<fx-tap style="--s: 15cqw; --d: 2.35s"></fx-tap></span></span>
+                              <span class="qs__after a-show" style="--d: 2.85s"><span class="qs__bar"><i style="--d: 2.9s"></i></span><span class="qs__state"><span class="a-out" style="--d: 4.45s">Receiving 3 files…</span><span class="a-in" style="--d: 4.55s">Saved to Downloads</span></span></span>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -818,6 +841,11 @@
                             loading="lazy"
                             alt="The same Receive page in dark mode."
                           />
+                          <fx-layer aria-hidden="true">
+                            <fx-wave style="--x: 28.25%; --y: 29.7%; --s: 9cqw; --wave: #fff; --d: 0.2s"></fx-wave>
+                            <fx-cursor style="--x: 65%; --y: 29.7%; --fx: -12cqw; --fy: 18cqw; --d: 1.5s"><svg><use href="#i-pointer" /></svg></fx-cursor>
+                            <fx-tap style="--x: 65%; --y: 29.7%; --d: 2.65s"></fx-tap>
+                          </fx-layer>
                         </button>
                       </div>
                       <div class="laptop__base" aria-hidden="true"></div>
@@ -842,17 +870,17 @@
                             <div class="pc__body">
                               <p class="pc__name">Office PC</p>
                               <div class="pc__drop">
-                                <span class="pc__file"><i class="t-doc"><svg><use href="#i-file" /></svg></i>Report.pdf</span>
-                                <span class="pc__file"><i class="t-dir"><svg><use href="#i-folder" /></svg></i>Photos</span>
-                                <small>2 items ready to send</small>
+                                <span class="pc__file a-drop" style="--d: 0.3s"><i class="t-doc"><svg><use href="#i-file" /></svg></i>Report.pdf</span>
+                                <span class="pc__file a-drop" style="--d: 0.5s"><i class="t-dir"><svg><use href="#i-folder" /></svg></i>Photos</span>
+                                <small class="a-pop" style="--d: 0.9s">2 items ready to send</small>
                               </div>
                               <p class="pc__label">Nearby devices</p>
                               <div class="pc__devices">
-                                <span class="qs__dev is-on"
-                                  ><i><svg><use href="#i-laptop" /></svg><em><svg><use href="#i-check" /></svg></em></i
+                                <span class="qs__dev is-on a-pop a-pick" style="--d: 1.1s; --p: 2.85s; --c: 4.3s"
+                                  ><i><svg><use href="#i-laptop" /></svg><fx-ring style="--s: 128%; --sw: 5; --d: 2.85s; --t: 1.4s"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" pathLength="100" /></svg></fx-ring><fx-tap style="--s: 5cqw; --d: 2.75s"></fx-tap><fx-cursor style="--x: 55%; --y: 55%; --fx: -14cqw; --fy: -11cqw; --d: 1.6s; --stay: 2.6s; --s: 2.1cqw"><svg><use href="#i-pointer" /></svg></fx-cursor><em><svg><use href="#i-check" /></svg></em></i
                                   ><b>MacBook Pro</b></span
                                 >
-                                <span class="qs__dev"><i><svg><use href="#i-phone" /></svg></i><b>Pixel 9</b></span>
+                                <span class="qs__dev a-pop" style="--d: 1.25s"><i><svg><use href="#i-phone" /></svg></i><b>Pixel 9</b></span>
                               </div>
                             </div>
                           </div>
@@ -902,6 +930,11 @@
                             loading="lazy"
                             alt="The same request in dark mode."
                           />
+                          <fx-layer aria-hidden="true">
+                            <fx-box style="--x: 69.6%; --y: 52.8%; --w: 16.2%; --h: 7.8%; --d: 0.4s"></fx-box>
+                            <fx-cursor style="--x: 91.4%; --y: 52.1%; --fx: -26cqw; --fy: 12cqw; --d: 1.3s; --stay: 2.6s"><svg><use href="#i-pointer" /></svg></fx-cursor>
+                            <fx-tap style="--x: 91.4%; --y: 52.1%; --d: 2.45s"></fx-tap>
+                          </fx-layer>
                         </button>
                       </div>
                       <div class="laptop__base" aria-hidden="true"></div>
@@ -936,9 +969,9 @@
                             <div class="pc__bar"><i></i>Quick Share<span>–&#8195;□&#8195;✕</span></div>
                             <div class="pc__body pc__body--center">
                               <p class="pc__name">Office PC</p>
-                              <div class="qs__radar"><i></i><i></i><i></i><span><svg><use href="#i-laptop" /></svg></span></div>
-                              <p class="qs__big">Ready to receive</p>
-                              <p class="qs__sub">Everyone nearby can share with <b>Office PC</b></p>
+                              <div class="qs__radar"><i></i><i></i><i></i><span><svg><use href="#i-laptop" /></svg><fx-tap style="--s: 9cqw; --d: 1.45s"></fx-tap><fx-cursor style="--x: 55%; --y: 55%; --fx: 12cqw; --fy: 10cqw; --d: 0.3s; --s: 2.1cqw"><svg><use href="#i-pointer" /></svg></fx-cursor></span></div>
+                              <p class="qs__big a-pop" style="--d: 1.8s">Ready to receive</p>
+                              <p class="qs__sub a-pop" style="--d: 2s">Everyone nearby can share with <b>Office PC</b></p>
                             </div>
                           </div>
                           <div class="pc__task"><i></i><i></i><i></i><i></i><i></i></div>
@@ -987,6 +1020,11 @@
                             loading="lazy"
                             alt="The same Send page in dark mode."
                           />
+                          <fx-layer aria-hidden="true">
+                            <fx-cursor style="--x: 69.5%; --y: 55.4%; --fx: -22cqw; --fy: -17cqw; --d: 0.3s; --stay: 1.6s"><fx-chip><i class="t-doc"><svg><use href="#i-file" /></svg></i>Report.pdf</fx-chip><svg><use href="#i-pointer" /></svg></fx-cursor>
+                            <fx-box style="--x: 60.8%; --y: 46.9%; --w: 17.7%; --h: 23.7%; --d: 1.2s"></fx-box>
+                            <fx-ring style="--x: 69.5%; --y: 55.4%; --s: 7.6cqw; --sw: 4; --d: 1.6s; --t: 1.8s"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" pathLength="100" /></svg></fx-ring>
+                          </fx-layer>
                         </button>
                       </div>
                       <div class="laptop__base" aria-hidden="true"></div>
@@ -1032,6 +1070,10 @@
                             loading="lazy"
                             alt="The same Send page in dark mode."
                           />
+                          <fx-layer aria-hidden="true">
+                            <fx-box style="--x: 60.8%; --y: 58.2%; --w: 17.6%; --h: 23.8%; --d: 0.4s"></fx-box>
+                            <fx-wave style="--x: 71.9%; --y: 70.3%; --s: 4.5cqw; --wave: var(--live); --d: 0.7s"></fx-wave>
+                          </fx-layer>
                         </button>
                       </div>
                       <div class="laptop__base" aria-hidden="true"></div>

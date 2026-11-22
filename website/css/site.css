@@ -57,7 +57,10 @@
   --ui-line: #e1e5ec;
   --ui-chip: #e7eefb;
   --wall: linear-gradient(135deg, #b9c8ff, #d6c6ff 55%, #f2c8e6);
-  --base: linear-gradient(#e6e8ec, #b8bcc4);
+  /* The MacBook: silver aluminium. */
+  --mb-rim: #c9ccd2;
+  --bar: #eceef2;
+  --bar-ink: #10131a;
 }
 
 :root[data-theme="dark"] {
@@ -85,7 +88,10 @@
   --ui-line: #262e3f;
   --ui-chip: #1f2b42;
   --wall: linear-gradient(135deg, #1c2a5c, #2b1f55 55%, #40204b);
-  --base: linear-gradient(#4b505a, #272a31);
+  /* The MacBook: space black aluminium. */
+  --mb-rim: #3a3c41;
+  --bar: #17181d;
+  --bar-ink: #eef1f7;
 }
 
 /* Without scripts, follow the system. */
@@ -115,7 +121,10 @@
     --ui-line: #262e3f;
     --ui-chip: #1f2b42;
     --wall: linear-gradient(135deg, #1c2a5c, #2b1f55 55%, #40204b);
-    --base: linear-gradient(#4b505a, #272a31);
+    /* The MacBook: space black aluminium. */
+    --mb-rim: #3a3c41;
+    --bar: #17181d;
+    --bar-ink: #eef1f7;
   }
 }
 
@@ -761,7 +770,7 @@ html:not(.js) .namebox {
   position: relative;
   z-index: 1;
   max-width: 1180px;
-  height: clamp(250px, 44vw, 560px);
+  aspect-ratio: 1180 / 553;
   margin: clamp(36px, 4.4vw, 56px) auto 0;
   clip-path: inset(-300px -60vw 0 -60vw);
 }
@@ -786,7 +795,7 @@ html:not(.js) .namebox {
 }
 
 /* -------------------------------------------------------- the devices */
-/* A laptop: the lid with its screen, and the edge of its base. */
+/* A laptop (the Windows PC): the lid with its screen. */
 .laptop {
   position: relative;
 }
@@ -834,44 +843,176 @@ button.laptop__screen {
   object-fit: cover;
   object-position: 0 0;
 }
-.laptop__base {
+
+/* A MacBook Pro, front on: the aluminium edge of the lid around a black
+   glass bezel, the notch with its camera, the display with rounded top
+   corners. The aluminium edge is silver in light, space black in dark. The display is 3024 × 1964, like the 14-inch model's:
+   below the menu bar and the notch, the app fills it, as in full screen. */
+.macbook {
   position: relative;
-  height: clamp(8px, 1.3vw, 16px);
-  margin: 0 -7%;
-  border-radius: 0 0 50% 50% / 0 0 100% 100%;
-  background: var(--base);
-  box-shadow: var(--shadow-sm);
 }
-.laptop__base::before {
+.macbook__lid {
+  position: relative;
+  padding: 1.5% 1.5% 2%;
+  border-radius: 3.3% 3.3% 0 0 / 5% 5% 0 0;
+  background: #050506;
+  box-shadow:
+    0 0 0 1.5px var(--mb-rim),
+    0 0 0 2.5px rgb(0 0 0 / 0.1),
+    inset 0 0 0 1px rgb(255 255 255 / 0.07),
+    var(--shadow);
+}
+.macbook__screen {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: 3024 / 1964;
+  border-radius: 1.2% 1.2% 0 0 / 1.85% 1.85% 0 0;
+  background: var(--bar);
+  overflow: hidden;
+}
+/* A faint reflection on the glass. */
+.macbook__screen::after {
   content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: linear-gradient(118deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.02) 38%, transparent 38.2%);
+  pointer-events: none;
+}
+/* The notch: as tall as the menu bar, with its camera lens, and small
+   curves where it meets the bezel. */
+.macbook__notch {
   position: absolute;
   top: 0;
   left: 50%;
-  width: 14%;
-  height: 42%;
-  border-radius: 0 0 8px 8px;
-  background: rgb(0 0 0 / 0.14);
+  z-index: 3;
+  width: 12.2%;
+  height: 3.9%;
+  border-radius: 0 0 1cqw 1cqw;
+  background: #050506;
   translate: -50% 0;
 }
-
+.macbook__notch::before,
+.macbook__notch::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 0.7cqw;
+  height: 0.7cqw;
+}
+.macbook__notch::before {
+  left: -0.7cqw;
+  background: radial-gradient(circle at 0 100%, transparent 0.68cqw, #050506 0.7cqw);
+}
+.macbook__notch::after {
+  right: -0.7cqw;
+  background: radial-gradient(circle at 100% 100%, transparent 0.68cqw, #050506 0.7cqw);
+}
+.macbook__notch i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.8cqw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #34476b, #0a0d14 62%);
+  box-shadow: 0 0 0 0.16cqw #111319;
+  translate: -50% -50%;
+}
+/* The menu bar, wrapping the notch: the app's menus on the left, the
+   menu bar icons (SQuick Share's among them) on the right. */
+.macbook__menubar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 1.6cqw;
+  height: 3.9%;
+  padding: 0 1.5cqw 0 2cqw;
+  background: var(--bar);
+  color: var(--bar-ink);
+  font: 500 1.12cqw/1 var(--sans);
+  white-space: nowrap;
+}
+.macbook__menubar b {
+  font-weight: 700;
+}
+.macbook__menubar em {
+  display: flex;
+  align-items: center;
+  gap: 1.3cqw;
+  margin-left: auto;
+  font-style: normal;
+}
+.macbook__menubar svg {
+  width: 1.4cqw;
+  height: 1.4cqw;
+}
+.macbook__menubar .macbook__battery {
+  width: 1.9cqw;
+}
+/* The app, full screen: everything below the menu bar. */
+.macbook__win {
+  container-type: inline-size;
+  position: absolute;
+  top: 3.9%;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: #000;
+  overflow: hidden;
+  cursor: zoom-in;
+  box-shadow: 0 -1px 0 rgb(0 0 0 / 0.1);
+}
+.macbook__win img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 0;
+}
 /* An Android phone, framed in the app's blue. Its screen is a drawing,
    sized with the phone (cqw), and follows the theme. */
 .phone {
   container-type: inline-size;
   position: relative;
   aspect-ratio: 9 / 19;
-  padding: 2.4%;
-  border-radius: 15% / 7.1%;
-  background: linear-gradient(150deg, #5cb0ff, #0a62e8 42%, #0a3fa6);
+  padding: 1.1%;
+  border-radius: 14.5% / 6.9%;
+  background: linear-gradient(150deg, #6dbaff, #0a62e8 42%, #0a3fa6);
   box-shadow:
-    inset 0 0 0 1.5px rgb(255 255 255 / 0.35),
+    inset 0 0 0 1px rgb(255 255 255 / 0.45),
     var(--shadow);
+}
+/* The power and volume buttons, on the right edge. */
+.phone::before,
+.phone::after {
+  content: "";
+  position: absolute;
+  right: -0.9%;
+  width: 1.1%;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, #0a4fc4, #3d8eff);
+}
+.phone::before {
+  top: 21%;
+  height: 6%;
+}
+.phone::after {
+  top: 30%;
+  height: 11%;
 }
 .phone__screen {
   position: relative;
   height: 100%;
-  border: 1.4cqw solid #06080c;
-  border-radius: 12.6% / 6%;
+  border: 1.1cqw solid #06080c;
+  border-radius: 13.6% / 6.4%;
   background: var(--ui-bg);
   color: var(--ui-ink);
   overflow: hidden;
@@ -1568,13 +1709,19 @@ button.laptop__screen {
     var(--panel-2);
   overflow: hidden;
 }
-/* The whole width of the Mac shows (its buttons are where the clicks land);
-   only its base is cut off. */
+/* The whole width of the computer shows (its buttons are where the clicks
+   land). */
 .slide__art .laptop {
   position: absolute;
   top: 12%;
   left: 5%;
   width: 90%;
+}
+.slide__art .macbook {
+  position: absolute;
+  top: 12%;
+  left: 9%;
+  width: 82%;
 }
 .slide__art--phone .phone {
   position: absolute;
@@ -2856,7 +3003,7 @@ html.is-smooth {
     margin-right: auto;
   }
   .stage {
-    height: clamp(250px, 66vw, 520px);
+    aspect-ratio: 100 / 55.5;
   }
   .stage__mac {
     width: 82%;
@@ -2876,6 +3023,11 @@ html.is-smooth {
     top: 11%;
     left: 5%;
     width: 90%;
+  }
+  .slide__art .macbook {
+    top: 11%;
+    left: 9%;
+    width: 82%;
   }
   .dl {
     grid-template-columns: minmax(0, 1fr);
@@ -2946,7 +3098,7 @@ html.is-smooth {
     width: auto;
   }
   .stage {
-    height: 78vw;
+    aspect-ratio: 100 / 62;
   }
   .stage__mac {
     width: 92%;

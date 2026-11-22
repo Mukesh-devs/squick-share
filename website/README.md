@@ -80,7 +80,7 @@ told in SQuick Share's own world instead of a spreadsheet's:
 | DataLiq (a spreadsheet) | SQuick Share (sharing nearby) |
 | --- | --- |
 | Cell grid behind the hero | Discovery rings around the headline, still, fading downward |
-| The app's window, tilted | An Android phone sharing with a Mac, both standing behind the ticker |
+| The app's window, tilted | An Android phone sharing with a Mac, both standing behind the ticker. The Mac is drawn as a 14-inch MacBook Pro: the notch, the menu bar wrapping it, the app full screen below them, and the bottom bezel (no hinge or base); the aluminium edge is silver in light, space black in dark |
 | "in seconds." as a selected range with the fill handle | "your Mac." as a transfer: a capsule whose progress bar fills, ending in a check |
 | Section labels as cell references (A2 Speed) | Section labels as the menu bar icon's states: a glyph that pings as it arrives |
 | The name box in the header | A status chip, like the menu bar icon, with the section in view |

@@ -431,7 +431,7 @@ await check("the guide shows one step at a time, for Android and Windows, both w
   assert.deepEqual(await visible(), ["Check the PIN, then accept."]);
   assert.match(await page.locator("[data-tour-status]").textContent(), /Step 2 of 3/);
   // The Mac's screen in a step is a real screenshot, loaded.
-  const shot = page.locator(".slide.is-on .laptop__screen img:visible");
+  const shot = page.locator(".slide.is-on .macbook__win img:visible");
   assert.ok(await shot.evaluate((i) => i.complete && i.naturalWidth > 0));
   await context.close();
 });
